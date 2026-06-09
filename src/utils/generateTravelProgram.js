@@ -1,5 +1,6 @@
 import { createChatCompletion } from '../services/openai'
 import { hasOpenAiApiKey } from '../lib/openaiConfig'
+import { generateVoiceProgramViaApi } from '../services/aiVoiceProgram'
 import { extractTextFromImage } from './screenshotOcr'
 
 const SECTIONS = [
@@ -160,9 +161,21 @@ export async function generateTravelProgram({
   clientName = '',
   agencyName = 'Your Travel Agency',
   images = [],
+  clientId = null,
+  session = null,
 }) {
   const imageFiles = images.filter((img) => img?.file)
   const imageUrls = images.map((img) => img.preview || img).filter(Boolean)
+
+  if (session?.access_token) {
+    const raw = await generateVoiceProgramViaApi({
+      transcript,
+      clientName,
+      clientId,
+      images,
+    }, session)
+    return polishProgramOutput(raw)
+  }
 
   let imageContext = ''
   if (imageFiles.length && !hasOpenAiApiKey()) {
@@ -230,6 +243,6 @@ Write the complete travel program proposal now.`
   return polishProgramOutput(raw)
 }
 
-export function isUsingOpenAi() {
-  return hasOpenAiApiKey()
+export function isUsingOpenAi(session = null) {
+  return Boolean(session?.access_token) || hasOpenAiApiKey()
 }

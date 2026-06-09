@@ -2,7 +2,13 @@ import http from 'node:http'
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import handler from '../api/ai/generate.js'
+import generateHandler from '../api/ai/generate.js'
+import voiceProgramHandler from '../api/ai/voice-program.js'
+
+const routes = {
+  '/api/ai/generate': generateHandler,
+  '/api/ai/voice-program': voiceProgramHandler,
+}
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -54,7 +60,8 @@ async function readJsonBody(req) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
 
-  if (url.pathname !== '/api/ai/generate') {
+  const handler = routes[url.pathname]
+  if (!handler) {
     res.writeHead(404, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ error: 'Not found' }))
     return

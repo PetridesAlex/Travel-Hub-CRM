@@ -9,7 +9,6 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { getVoiceNotes, createVoiceNote, deleteVoiceNote } from '../services/voiceNotes'
 import { getClients } from '../services/clients'
 import { generateTravelProgram, isUsingOpenAi } from '../utils/generateTravelProgram'
-import { hasOpenAiApiKey } from '../lib/openaiConfig'
 import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
 import VoiceInputButton from '../components/VoiceInputButton'
@@ -25,7 +24,7 @@ const STEPS = [
 ]
 
 export default function VoiceNotes() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const { agency } = useAgency()
   const fileInputRef = useRef(null)
   const programRef = useRef(null)
@@ -94,6 +93,8 @@ export default function VoiceNotes() {
         clientName: getClientName(),
         agencyName: agency?.name || 'Your Travel Agency',
         images,
+        clientId: linkedClientId || null,
+        session,
       })
       setGeneratedProgram(program)
       requestAnimationFrame(() => {
@@ -206,15 +207,15 @@ export default function VoiceNotes() {
         <h2 className="text-xl font-semibold text-slate-900">Voice Notes</h2>
         <p className="text-sm text-slate-500">
           Speak your ideas, add reference images, and AI writes a polished travel program.
-          {isUsingOpenAi() ? ' Powered by OpenAI.' : ' Add an OpenAI key in Settings for full AI quality.'}
+          {isUsingOpenAi(session) ? ' Powered by secure server-side AI.' : ' Sign in and use the deployed app for full AI quality.'}
         </p>
       </div>
 
-      {!hasOpenAiApiKey() && (
+      {!isUsingOpenAi(session) && (
         <div className="relative overflow-hidden rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50 to-white px-4 py-3 text-sm text-amber-900 shadow-sm">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/50 to-transparent" />
-          <strong>OpenAI key not set.</strong> A basic formatted program will be generated.
-          For full quality, add your API key in <strong>Settings → OpenAI Integration</strong>.
+          <strong>AI unavailable.</strong> A basic formatted program will be generated.
+          Deploy to Vercel or run <code className="rounded bg-amber-100 px-1">npm run dev:api</code> locally for professional AI output.
         </div>
       )}
 
@@ -398,7 +399,7 @@ export default function VoiceNotes() {
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  Generate Program {isUsingOpenAi() ? '' : '(Basic)'}
+                  Generate Program {isUsingOpenAi(session) ? '' : '(Basic)'}
                 </>
               )}
             </Button>
