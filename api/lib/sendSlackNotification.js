@@ -6,7 +6,10 @@ export async function sendSlackNotification(message) {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL
 
   if (!webhookUrl) {
-    return { ok: false, error: 'SLACK_WEBHOOK_URL is not configured on the server.' }
+    return {
+      ok: false,
+      error: 'SLACK_WEBHOOK_URL is not configured on the server. Add it in Vercel → Settings → Environment Variables (Production), then redeploy. For local dev, add it to .env and run npm run dev:api:restart.',
+    }
   }
 
   if (!message?.trim()) {

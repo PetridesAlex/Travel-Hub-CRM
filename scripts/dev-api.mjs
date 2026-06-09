@@ -110,4 +110,7 @@ server.listen(port, () => {
   if (!process.env.OPENAI_API_KEY) {
     console.warn('Warning: OPENAI_API_KEY is not set in .env — generation will fail until you add it.')
   }
+  if (!process.env.SLACK_WEBHOOK_URL) {
+    console.warn('Warning: SLACK_WEBHOOK_URL is not set in .env — Slack notifications will fail until you add it.')
+  }
 })
