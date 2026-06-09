@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sparkles, Copy, Check, Loader2, FileText } from 'lucide-react'
+import { Sparkles, Copy, Check, Loader2, FileText, Upload, X, ImageIcon } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { getAgents } from '../../services/aiAgents'
 import { getTemplates } from '../../services/aiTemplates'
@@ -15,8 +15,15 @@ import {
   AGENT_TEMPLATE_MAP,
   getEmptyInputForCategory,
   getFieldsForCategory,
+  SCREENSHOT_AUTO_FILL_CATEGORIES,
 } from '../../constants/aiTemplateFields'
 import { formatClientName, formatClientOptionLabel } from '../../utils/format'
+import { compressImageForApi, extractTextFromImage } from '../../utils/screenshotOcr'
+import { parseFlightScreenshot } from '../../utils/parseFlightScreenshot'
+import { mergeTemplateInputData, parsedScreenshotsToFlightInput } from '../../utils/mapFlightDataToTemplateFields'
+import { extractFlightFieldsFromImages } from '../../services/aiExtractFlight'
+
+const MAX_SCREENSHOTS = 3
 
 export default function AIGenerator() {
   const { session } = useAuth()
@@ -38,6 +45,12 @@ export default function AIGenerator() {
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [screenshots, setScreenshots] = useState([])
+  const [extracting, setExtracting] = useState(false)
+  const [extractProgress, setExtractProgress] = useState(0)
+  const [fillMessage, setFillMessage] = useState('')
+  const [extractStatus, setExtractStatus] = useState('')
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     Promise.all([
@@ -58,6 +71,10 @@ export default function AIGenerator() {
 
   const selectedAgent = agents.find((a) => a.id === agentId)
   const selectedTemplate = templates.find((t) => t.id === templateId)
+
+  const supportsScreenshots = Boolean(
+    selectedTemplate && SCREENSHOT_AUTO_FILL_CATEGORIES.includes(selectedTemplate.category),
+  )
 
   const compatibleTemplates = useMemo(() => {
     if (!selectedAgent) return templates
@@ -113,6 +130,117 @@ export default function AIGenerator() {
     setTemplateId(id)
     setOutput('')
     setGenerationId(null)
+    setScreenshots([])
+    setFillMessage('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handleScreenshotUpload(e) {
+    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith('image/'))
+    if (!files.length || !supportsScreenshots) return
+
+    const slotsLeft = MAX_SCREENSHOTS - screenshots.length
+    if (slotsLeft <= 0) {
+      setError(`You can upload up to ${MAX_SCREENSHOTS} screenshots.`)
+      return
+    }
+
+    setExtracting(true)
+    setExtractProgress(0)
+    setExtractStatus('Preparing images…')
+    setError('')
+    setFillMessage('')
+
+    try {
+      const toAdd = files.slice(0, slotsLeft)
+      const newItems = await Promise.all(
+        toAdd.map(async (file) => ({
+          id: crypto.randomUUID(),
+          preview: await compressImageForApi(file),
+          name: file.name,
+          file,
+        })),
+      )
+
+      const nextScreenshots = [...screenshots, ...newItems]
+      setScreenshots(nextScreenshots)
+
+      let extracted = {}
+
+      if (session?.access_token) {
+        setExtractStatus('Analysing screenshots with AI…')
+        setExtractProgress(40)
+        const imageUrls = nextScreenshots.map((s) => s.preview)
+        extracted = await extractFlightFieldsFromImages(imageUrls, session)
+        setExtractProgress(100)
+      } else {
+        setExtractStatus('Reading with OCR (first time may take a minute)…')
+        const parsedList = []
+        for (let i = 0; i < newItems.length; i++) {
+          const rawText = await extractTextFromImage(newItems[i].file, (progress, status) => {
+            const overall = ((screenshots.length + i + progress / 100) / nextScreenshots.length) * 100
+            setExtractProgress(Math.round(overall))
+            if (status) setExtractStatus(status)
+          })
+          parsedList.push(parseFlightScreenshot(rawText))
+        }
+        extracted = parsedScreenshotsToFlightInput([
+          ...screenshots.map((s) => s.parsed).filter(Boolean),
+          ...parsedList,
+        ])
+      }
+
+      const filledCount = Object.values(extracted).filter((v) => v?.trim()).length
+
+      if (filledCount > 0) {
+        setInputData((prev) => mergeTemplateInputData(prev, extracted))
+        setFillMessage(`Auto-filled ${filledCount} field${filledCount === 1 ? '' : 's'} from screenshot${nextScreenshots.length > 1 ? 's' : ''}. Review and edit before generating.`)
+      } else {
+        setFillMessage('Could not read flight details from the screenshot. Try a clearer crop or fill fields manually.')
+      }
+    } catch (err) {
+      setError(err.message || 'Could not read screenshot.')
+    } finally {
+      setExtracting(false)
+      setExtractProgress(0)
+      setExtractStatus('')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function handleRemoveScreenshot(id) {
+    const next = screenshots.filter((s) => s.id !== id)
+    setScreenshots(next)
+    setFillMessage('')
+
+    if (!next.length) return
+
+    if (session?.access_token) {
+      try {
+        setExtracting(true)
+        setExtractStatus('Re-analysing screenshots…')
+        const extracted = await extractFlightFieldsFromImages(next.map((s) => s.preview), session)
+        setInputData((prev) => mergeTemplateInputData({
+          ...getEmptyInputForCategory(selectedTemplate.category),
+          client_name: prev.client_name || '',
+        }, extracted))
+      } catch {
+        // keep existing field values if re-analysis fails
+      } finally {
+        setExtracting(false)
+        setExtractStatus('')
+      }
+      return
+    }
+
+    const parsedOnly = next.filter((s) => s.parsed)
+    if (parsedOnly.length) {
+      const extracted = parsedScreenshotsToFlightInput(parsedOnly.map((s) => s.parsed))
+      setInputData((prev) => mergeTemplateInputData({
+        ...getEmptyInputForCategory(selectedTemplate.category),
+        client_name: prev.client_name || '',
+      }, extracted))
+    }
   }
 
   function updateField(key, value) {
@@ -182,7 +310,9 @@ export default function AIGenerator() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-slate-900">AI Generator</h2>
-        <p className="text-sm text-slate-500">Select an agent and template, fill in your details, and generate professional content</p>
+        <p className="text-sm text-slate-500">
+          Select an agent and template, upload screenshots or fill fields, then generate professional content
+        </p>
       </div>
 
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50 p-5 shadow-sm">
@@ -197,6 +327,69 @@ export default function AIGenerator() {
 
         {selectedAgent && (
           <p className="mt-3 text-xs text-slate-500">{selectedAgent.description}</p>
+        )}
+
+        {supportsScreenshots && (
+          <div className="mt-5 space-y-3 border-t border-slate-200/60 pt-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Upload flight screenshots</p>
+                <p className="text-xs text-slate-500">
+                  Ryanair, booking confirmations, fare pages — fields fill automatically
+                </p>
+              </div>
+              {screenshots.length < MAX_SCREENSHOTS && (
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-teal-400 hover:bg-teal-50 hover:text-teal-700">
+                  {extracting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {extracting
+                    ? `${extractStatus || 'Reading…'}${extractProgress ? ` ${extractProgress}%` : ''}`
+                    : screenshots.length ? 'Add screenshot' : 'Upload screenshot'}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleScreenshotUpload}
+                    disabled={extracting || generating}
+                  />
+                </label>
+              )}
+            </div>
+
+            {fillMessage && (
+              <p className={`text-xs ${fillMessage.includes('Could not') ? 'text-amber-700' : 'text-emerald-700'}`}>
+                {fillMessage}
+              </p>
+            )}
+
+            {screenshots.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {screenshots.map((shot, index) => (
+                  <div key={shot.id} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <img src={shot.preview} alt={`Screenshot ${index + 1}`} className="h-24 w-full object-cover object-top" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveScreenshot(shot.id)}
+                      className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-slate-500 opacity-0 shadow-sm transition group-hover:opacity-100 hover:text-red-600"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                    <p className="truncate px-2 py-1 text-[10px] text-slate-500">{shot.name || `Screenshot ${index + 1}`}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                <ImageIcon className="h-5 w-5 shrink-0 text-slate-400" />
+                Upload outbound + return screenshots to auto-fill route, dates, flights, inclusions, and price.
+              </div>
+            )}
+          </div>
         )}
 
         {fieldSchema.length > 0 && (

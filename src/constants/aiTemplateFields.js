@@ -114,3 +114,6 @@ export function getEmptyInputForCategory(category) {
   const fields = getFieldsForCategory(category)
   return Object.fromEntries(fields.map((f) => [f.key, '']))
 }
+
+/** Template categories that support screenshot → auto-fill */
+export const SCREENSHOT_AUTO_FILL_CATEGORIES = ['flight_offer']

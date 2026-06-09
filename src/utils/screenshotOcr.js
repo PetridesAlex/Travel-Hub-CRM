@@ -1,20 +1,47 @@
 import { createWorker } from 'tesseract.js'
 
-export async function extractTextFromImage(file, onProgress) {
-  const worker = await createWorker('eng', 1, {
-    logger: (m) => {
-      if (m.status === 'recognizing text' && onProgress) {
-        onProgress(Math.round(m.progress * 100))
-      }
-    },
-  })
+let sharedWorker = null
+let workerInitPromise = null
 
-  try {
-    const { data: { text } } = await worker.recognize(file)
-    return text.trim()
-  } finally {
-    await worker.terminate()
+function reportProgress(onProgress, percent, status) {
+  if (!onProgress) return
+  if (typeof onProgress === 'function') {
+    if (onProgress.length >= 2) {
+      onProgress(percent, status)
+    } else {
+      onProgress(percent)
+    }
   }
+}
+
+async function getSharedWorker(onProgress) {
+  if (sharedWorker) return sharedWorker
+
+  if (!workerInitPromise) {
+    workerInitPromise = createWorker('eng', 1, {
+      logger: (m) => {
+        if (m.status === 'loading tesseract core') reportProgress(onProgress, 8, 'Loading OCR engine…')
+        else if (m.status === 'initializing api') reportProgress(onProgress, 18, 'Initializing OCR…')
+        else if (m.status === 'loading language traineddata') reportProgress(onProgress, 28, 'Loading language data…')
+        else if (m.status === 'recognizing text') {
+          reportProgress(onProgress, 30 + Math.round((m.progress || 0) * 70), 'Reading screenshot…')
+        }
+      },
+    })
+  }
+
+  sharedWorker = await workerInitPromise
+  return sharedWorker
+}
+
+export async function extractTextFromImage(file, onProgress) {
+  const compressed = await compressImageForApi(file, 1400, 0.85)
+  reportProgress(onProgress, 5, 'Preparing image…')
+
+  const worker = await getSharedWorker(onProgress)
+  const blob = await fetch(compressed).then((r) => r.blob())
+  const { data: { text } } = await worker.recognize(blob)
+  return text.trim()
 }
 
 export function readImageFile(file) {
@@ -26,7 +53,7 @@ export function readImageFile(file) {
   })
 }
 
-/** Resize/compress images before sending to the AI API (faster upload + analysis). */
+/** Resize/compress images before OCR or API upload. */
 export async function compressImageForApi(file, maxWidth = 1280, quality = 0.82) {
   const dataUrl = await readImageFile(file)
   if (!file.type.startsWith('image/')) return dataUrl
