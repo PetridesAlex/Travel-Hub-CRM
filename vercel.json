@@ -7,7 +7,8 @@
     "api/ai/compare-hotel-rates.js": { "maxDuration": 60 },
     "api/slack/test.js": { "maxDuration": 15 },
     "api/slack/notify.js": { "maxDuration": 15 },
-    "api/slack/payment-reminders.js": { "maxDuration": 30 }
+    "api/slack/payment-reminders.js": { "maxDuration": 30 },
+    "api/leads/inbound.js": { "maxDuration": 15 }
   },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }

@@ -37,6 +37,7 @@ export default function Settings() {
   const [savingAgency, setSavingAgency] = useState(false)
   const [agencyMessage, setAgencyMessage] = useState('')
   const [copiedKey, setCopiedKey] = useState(false)
+  const [copiedWebhook, setCopiedWebhook] = useState(false)
   const [slackTesting, setSlackTesting] = useState(false)
   const [slackMessage, setSlackMessage] = useState('')
   const displayName = agency?.name || ''
@@ -69,6 +70,14 @@ export default function Settings() {
     await navigator.clipboard.writeText(agency.api_key)
     setCopiedKey(true)
     setTimeout(() => setCopiedKey(false), 2000)
+  }
+
+  const inboundWebhookUrl = `${window.location.origin}/api/leads/inbound`
+
+  async function copyInboundWebhook() {
+    await navigator.clipboard.writeText(inboundWebhookUrl)
+    setCopiedWebhook(true)
+    setTimeout(() => setCopiedWebhook(false), 2000)
   }
 
   async function handleSlackTest() {
@@ -154,6 +163,53 @@ export default function Settings() {
             {savingAgency ? 'Saving...' : 'Save Agency Profile'}
           </Button>
         </form>
+      </Card>
+
+      <Card>
+        <h3 className="mb-1 font-semibold text-slate-900">Website Inquiry → Auto Lead</h3>
+        <p className="mb-4 text-sm text-slate-500">
+          Connect your website contact form or Outlook inbox to automatically create leads in the CRM.
+          Send a POST request with your agency API key — the system creates the client (if new) and a lead,
+          then notifies Slack.
+        </p>
+        <div className="mb-4">
+          <p className="mb-1 block text-sm font-medium text-slate-700">Webhook URL</p>
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={inboundWebhookUrl}
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700"
+            />
+            <Button type="button" variant="secondary" onClick={copyInboundWebhook}>
+              {copiedWebhook ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copiedWebhook ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+          <p className="font-medium text-slate-700">Header</p>
+          <code className="block">X-Agency-Api-Key: your_api_key</code>
+          <p className="pt-2 font-medium text-slate-700">Structured form (recommended)</p>
+          <code className="block whitespace-pre-wrap">{`{
+  "full_name": "Maria Papadou",
+  "email": "maria@example.com",
+  "phone": "+357 99 123 456",
+  "destination": "Maldives",
+  "package": "Honeymoon Package 7 nights",
+  "travel_dates": "July 2026",
+  "budget": "8500",
+  "message": "Looking for all-inclusive honeymoon",
+  "source": "honeywelltravel.com contact form"
+}`}</code>
+          <p className="pt-2 font-medium text-slate-700">From Outlook email (Power Automate)</p>
+          <code className="block whitespace-pre-wrap">{`{
+  "raw_email": "Name: Maria\\nEmail: maria@example.com\\nPackage: Maldives Honeymoon\\nMessage: ..."
+}`}</code>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">
+          Requires <code className="rounded bg-slate-100 px-1">SUPABASE_SERVICE_ROLE_KEY</code> in Vercel.
+          See <code className="rounded bg-slate-100 px-1">docs/website-inbound-leads.md</code> for Power Automate setup.
+        </p>
       </Card>
 
       <Card>
