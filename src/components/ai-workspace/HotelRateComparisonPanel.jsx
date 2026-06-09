@@ -105,6 +105,15 @@ export default function HotelRateComparisonPanel({ comparison, loading }) {
         />
       </div>
 
+      {(c.priceWarnings?.length > 0) && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3 text-xs text-amber-900">
+          <p className="font-semibold">Price adjusted — please verify</p>
+          <ul className="mt-1 list-inside list-disc space-y-0.5">
+            {c.priceWarnings.map((w) => <li key={w}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+
       {(c.savingsVsBooking || c.netVsPublicDiff) && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50/50 px-4 py-3 text-sm text-emerald-900">
           <TrendingDown className="h-4 w-4 shrink-0" />

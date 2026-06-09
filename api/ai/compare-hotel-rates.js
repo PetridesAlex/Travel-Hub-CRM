@@ -5,6 +5,7 @@ import {
   buildCompareHotelRatesUserMessage,
   buildComparisonView,
   computeHotelQuoteFields,
+  normalizeExtractedPrices,
   parseCompareHotelRatesJson,
 } from '../lib/compareHotelRatesPrompt.js'
 
@@ -101,8 +102,9 @@ export default async function handler(req, res) {
     return res.status(422).json({ error: 'Could not read hotel rates from the images. Try clearer screenshots.' })
   }
 
-  const fields = computeHotelQuoteFields(extracted, marginPercent)
-  const comparison = buildComparisonView(extracted, marginPercent)
+  const normalized = normalizeExtractedPrices(extracted)
+  const fields = computeHotelQuoteFields(normalized, marginPercent)
+  const comparison = buildComparisonView(normalized, marginPercent)
 
-  return res.status(200).json({ fields, comparison, extracted })
+  return res.status(200).json({ fields, comparison, extracted: normalized })
 }

@@ -2,9 +2,10 @@ import {
   HOTEL_EXTRACT_KEYS,
   computeHotelQuoteFields,
   buildComparisonView,
+  normalizeExtractedPrices,
 } from '../../shared/hotelRateComparison.js'
 
-export { computeHotelQuoteFields, buildComparisonView }
+export { computeHotelQuoteFields, buildComparisonView, normalizeExtractedPrices }
 
 export const HOTEL_COMPARE_FIELD_KEYS = HOTEL_EXTRACT_KEYS
 
@@ -30,8 +31,12 @@ Extraction rules:
 - room_details: extra room info (size, view, bed type).
 - meal_plan: e.g. "Bed & Breakfast", "Half Board", "Room Only".
 - breakfast_included: "Yes", "No", or brief note if visible.
-- supplier_net_rate / booking_public_rate: TOTAL stay price with currency (e.g. "€420.00").
-- supplier_price_per_night / booking_price_per_night: per-night rate if shown; if only total + nights visible, leave empty (computed later).
+- supplier_net_rate / booking_public_rate: human-readable TOTAL with currency symbol (e.g. "€3457.28").
+- supplier_net_amount / booking_public_amount: TOTAL as plain number ONLY — digits and one decimal point, NO thousand separators (e.g. "3457.28"). This is the most important price field.
+- supplier_price_per_night / booking_price_per_night: per-night with currency if visible.
+- supplier_per_night_amount / booking_per_night_amount: per-night as plain number (e.g. "691.46").
+- Read the price from the TOTAL / GRAND TOTAL line for the full stay — NOT reference numbers, booking IDs, points, or loyalty numbers.
+- Double-check prices are realistic for a hotel stay (typically €50–€15,000 total). If unsure, leave amount fields empty rather than guessing.
 - supplier_platform / booking_platform: platform name if visible.
 - cancellation_policy, taxes_and_fees, star_rating, additional_notes: any visible terms.
 - inclusions: brief summary of what is included.
