@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { extractOpenAiText } from '../lib/buildAiPrompt.js'
+import { createOpenAiResponse } from '../lib/openaiService.js'
 import {
   buildCompareHotelRatesInstructions,
   buildCompareHotelRatesUserMessage,
@@ -68,34 +68,18 @@ export default async function handler(req, res) {
     bookingImages.forEach((url) => content.push({ type: 'input_image', image_url: url }))
   }
 
-  let openAiResponse
+  let raw
   try {
-    openAiResponse = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${openAiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1',
-        instructions: buildCompareHotelRatesInstructions(),
-        input: [{ role: 'user', content }],
-        temperature: 0.1,
-      }),
+    const result = await createOpenAiResponse({
+      instructions: buildCompareHotelRatesInstructions(),
+      input: [{ role: 'user', content }],
+      temperature: 0.1,
     })
+    raw = result.text
   } catch (err) {
-    return res.status(502).json({ error: `OpenAI request failed: ${err.message}` })
+    return res.status(502).json({ error: err.message })
   }
 
-  if (!openAiResponse.ok) {
-    const errBody = await openAiResponse.json().catch(() => ({}))
-    return res.status(502).json({
-      error: errBody?.error?.message || `OpenAI request failed (${openAiResponse.status})`,
-    })
-  }
-
-  const openAiData = await openAiResponse.json()
-  const raw = extractOpenAiText(openAiData)
   const extracted = parseCompareHotelRatesJson(raw)
 
   if (!Object.keys(extracted).length) {

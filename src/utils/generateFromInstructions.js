@@ -137,6 +137,7 @@ export async function buildEmailFromInput({
   currency = 'EUR',
   destination = '',
   extraNotes = '',
+  session = null,
 }) {
   const flightDetails = flightData
     ? formatFlightDataForEmail({
@@ -159,9 +160,9 @@ export async function buildEmailFromInput({
     extraNotes,
   }
 
-  if (canUseAiEmail()) {
+  if (canUseAiEmail(session)) {
     try {
-      return await generateEmailWithAI({ ...source, destination: route })
+      return await generateEmailWithAI({ ...source, destination: route }, session)
     } catch (err) {
       console.warn('AI email generation failed, using template fallback:', err)
     }
@@ -182,8 +183,8 @@ export async function buildEmailFromInput({
 /**
  * Regenerate: apply instructions to the current email, or rebuild from source.
  */
-export async function regenerateEmail(source, regenInstruction = '', currentEmail = {}) {
-  const freshEmail = await buildEmailFromInput(source)
+export async function regenerateEmail(source, regenInstruction = '', currentEmail = {}, session = null) {
+  const freshEmail = await buildEmailFromInput({ ...source, session })
 
   if (!regenInstruction.trim()) {
     return freshEmail

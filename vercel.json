@@ -1,5 +1,6 @@
 {
   "functions": {
+    "api/ai/assist.js": { "maxDuration": 60 },
     "api/ai/voice-program.js": { "maxDuration": 60 },
     "api/ai/generate.js": { "maxDuration": 60 },
     "api/ai/extract-flight-fields.js": { "maxDuration": 60 },

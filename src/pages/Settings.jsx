@@ -242,7 +242,7 @@ export default function Settings() {
       <Card>
         <h3 className="mb-1 font-semibold text-slate-900">AI Workspace</h3>
         <p className="mb-3 text-sm text-slate-500">
-          AI generation is powered securely on the server. Set <code className="rounded bg-slate-100 px-1">OPENAI_API_KEY</code> in your Vercel project environment variables — it is never stored in the browser.
+          AI generation uses <code className="rounded bg-slate-100 px-1">OPENAI_API_KEY</code> on Vercel only (model: <code className="rounded bg-slate-100 px-1">gpt-5.5</code> via Responses API). Keys are never stored in the browser.
         </p>
         <Link to="/ai-workspace/generator" className="text-sm font-semibold text-teal-700 hover:text-teal-800">
           Open AI Generator →

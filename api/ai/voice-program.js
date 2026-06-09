@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { extractOpenAiText } from '../lib/buildAiPrompt.js'
+import { createOpenAiResponse } from '../lib/openaiService.js'
 import {
   buildOpenAiVoiceInput,
   buildVoiceProgramInstructions,
@@ -82,37 +82,16 @@ export default async function handler(req, res) {
   const instructions = buildVoiceProgramInstructions(agencyName)
   const input = buildOpenAiVoiceInput({ userMessage, imageUrls })
 
-  let openAiResponse
+  let output
   try {
-    openAiResponse = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${openAiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1',
-        instructions,
-        input,
-        temperature: 0.3,
-      }),
+    const result = await createOpenAiResponse({
+      instructions,
+      input,
+      temperature: 0.3,
     })
+    output = result.text
   } catch (err) {
-    return res.status(502).json({ error: `OpenAI request failed: ${err.message}` })
-  }
-
-  if (!openAiResponse.ok) {
-    const errBody = await openAiResponse.json().catch(() => ({}))
-    return res.status(502).json({
-      error: errBody?.error?.message || `OpenAI request failed (${openAiResponse.status})`,
-    })
-  }
-
-  const openAiData = await openAiResponse.json()
-  const output = extractOpenAiText(openAiData)
-
-  if (!output) {
-    return res.status(502).json({ error: 'OpenAI returned an empty response.' })
+    return res.status(502).json({ error: err.message })
   }
 
   return res.status(200).json({ output })

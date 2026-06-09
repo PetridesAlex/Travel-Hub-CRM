@@ -93,8 +93,4 @@ export function buildOpenAiUserMessage({ templateBody, inputData, agencyName, ex
   return parts.join('\n')
 }
 
-export function extractOpenAiText(data) {
-  const message = data?.output?.find((item) => item.type === 'message')
-  const textPart = message?.content?.find((part) => part.type === 'output_text')
-  return textPart?.text?.trim() || ''
-}
+export { extractOpenAiText } from './openaiService.js'

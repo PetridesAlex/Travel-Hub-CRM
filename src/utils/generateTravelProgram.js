@@ -1,18 +1,5 @@
-import { createChatCompletion } from '../services/openai'
-import { hasOpenAiApiKey } from '../lib/openaiConfig'
 import { generateVoiceProgramViaApi } from '../services/aiVoiceProgram'
 import { extractTextFromImage } from './screenshotOcr'
-
-const SECTIONS = [
-  'Program Overview',
-  'Client & Purpose',
-  'Flights',
-  'Accommodation',
-  'Travel Insurance',
-  'Inclusions & Services',
-  'Pricing Summary',
-  'Next Steps & Terms',
-]
 
 function cleanSpokenText(text) {
   return text
@@ -165,7 +152,6 @@ export async function generateTravelProgram({
   session = null,
 }) {
   const imageFiles = images.filter((img) => img?.file)
-  const imageUrls = images.map((img) => img.preview || img).filter(Boolean)
 
   if (session?.access_token) {
     const raw = await generateVoiceProgramViaApi({
@@ -178,7 +164,7 @@ export async function generateTravelProgram({
   }
 
   let imageContext = ''
-  if (imageFiles.length && !hasOpenAiApiKey()) {
+  if (imageFiles.length) {
     const ocrChunks = await Promise.all(
       imageFiles.map((img) => extractTextFromImage(img.file).catch(() => '')),
     )
@@ -188,61 +174,13 @@ export async function generateTravelProgram({
   const combinedText = [transcript.trim(), imageContext].filter(Boolean).join('\n\n')
   const cleaned = cleanSpokenText(combinedText)
 
-  if (!cleaned && !imageUrls.length) {
-    throw new Error('Please speak, type, or upload at least one image.')
+  if (!cleaned) {
+    throw new Error('Please sign in to use AI, or speak/type notes the system can read.')
   }
 
-  if (!hasOpenAiApiKey()) {
-    if (!cleaned) {
-      throw new Error('Could not read text from images. Add your OpenAI key in Settings for vision analysis.')
-    }
-    return buildFallbackProgram(cleaned, clientName, agencyName)
-  }
-
-  const hasImages = imageUrls.length > 0
-  const systemPrompt = `You are a senior travel consultant at ${agencyName}, writing a client-ready travel program proposal.
-
-Transform rough spoken agent notes${hasImages ? ' and attached travel images (hotel brochures, flight screenshots, itineraries, rate sheets)' : ''} into polished professional copy — the same quality as ChatGPT business writing.
-
-STRICT RULES:
-1. Completely REWRITE the content. Never copy spoken phrasing, filler words, or rambling from the voice note.
-2. NEVER repeat the same information twice. Each fact appears exactly once in the most relevant section.
-3. Remove all speech fillers ("hello", "so basically", "I want you to", "please include", "um", etc.).
-4. Write in clear, confident, professional business English — complete sentences, no awkward phrasing.
-5. Be concise. Quality over length. Do not pad with generic filler text.
-6. Use these section headings only when relevant (omit empty sections):
-   ${SECTIONS.join(', ')}
-7. Program Overview: 2–3 polished sentences summarising the trip — not a list of raw notes.
-8. Use bullet points only where they improve readability (flights, inclusions, pricing).
-9. Do NOT invent prices, dates, flight numbers, or hotel details not mentioned in the notes or images — write "To be confirmed" instead.
-10. Preserve currencies exactly as mentioned (£, €, $).
-11. Close with a brief professional sign-off from ${agencyName}.
-12. Do not use markdown symbols (#, **, etc.). Plain text only.
-${hasImages ? '13. Extract all useful details from the images: hotel names, room types, flight times, airlines, prices, dates, inclusions.' : ''}`
-
-  const userPrompt = `Client: ${clientName || 'Not specified'}
-
-${transcript.trim() ? `Raw agent voice note (do NOT copy this wording — rewrite professionally):
-"""
-${transcript.trim()}
-"""` : 'No voice note provided — use the attached images as the primary source.'}
-
-${hasImages ? `\n${imageUrls.length} travel image(s) attached — analyse them for hotels, flights, pricing, room types, and inclusions.` : ''}
-
-Write the complete travel program proposal now.`
-
-  const raw = await createChatCompletion({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    images: hasImages ? imageUrls : [],
-    temperature: 0.3,
-  })
-
-  return polishProgramOutput(raw)
+  return buildFallbackProgram(cleaned, clientName, agencyName)
 }
 
 export function isUsingOpenAi(session = null) {
-  return Boolean(session?.access_token) || hasOpenAiApiKey()
+  return Boolean(session?.access_token)
 }

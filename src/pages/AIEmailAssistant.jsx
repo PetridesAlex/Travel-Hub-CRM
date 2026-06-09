@@ -28,7 +28,7 @@ const MODES = [
 const MAX_SCREENSHOTS = 5
 
 export default function AIEmailAssistant() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const fileInputRef = useRef(null)
   const emailEditorRef = useRef(null)
   const [mode, setMode] = useState('both')
@@ -257,7 +257,7 @@ export default function AIEmailAssistant() {
 
     setGenerating(true)
     try {
-      const email = await buildEmailFromInput(getSource())
+      const email = await buildEmailFromInput({ ...getSource(), session })
       setEditSubject(email.subject || selectedTemplate.subjectPrefix)
       setEditBody(email.body || '')
       setHasGenerated(true)
@@ -286,7 +286,7 @@ export default function AIEmailAssistant() {
       const email = await regenerateEmail(getSource(), regenInstruction, {
         subject: editSubject,
         body: editBody,
-      })
+      }, session)
       setEditSubject(email.subject || editSubject)
       setEditBody(email.body || editBody)
       setRegenInstruction('')
@@ -345,8 +345,8 @@ export default function AIEmailAssistant() {
       <div>
         <h2 className="text-xl font-semibold text-slate-900">AI Email Assistant</h2>
         <p className="text-sm text-slate-500">
-          Legacy email tool with screenshot OCR and voice. For professional agent-based emails, use AI Workspace.
-          {canUseAiEmail() ? ' Local OpenAI key detected for fallback generation.' : ' Uses built-in templates when no local key is set.'}
+          Legacy email tool with screenshot OCR and voice. AI generation runs securely on the server (GPT-5.5).
+          {canUseAiEmail(session) ? '' : ' Sign in to enable AI-powered emails.'}
         </p>
       </div>
 
