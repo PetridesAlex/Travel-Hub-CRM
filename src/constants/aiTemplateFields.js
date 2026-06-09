@@ -115,5 +115,20 @@ export function getEmptyInputForCategory(category) {
   return Object.fromEntries(fields.map((f) => [f.key, '']))
 }
 
-/** Template categories that support screenshot → auto-fill */
-export const SCREENSHOT_AUTO_FILL_CATEGORIES = ['flight_offer']
+/** Upload hint copy per template category */
+export const SCREENSHOT_UPLOAD_HINTS = {
+  flight_offer: 'Ryanair, booking confirmations, fare pages — route, flights, price fill automatically',
+  cruise_offer: 'Cruise brochures, cabin pages, fare summaries',
+  hotel_request: 'Hotel rates, availability sheets, supplier quotes',
+  honeymoon_offer: 'Resort brochures, package inclusions, pricing',
+  payment_reminder: 'Invoices, booking confirmations, payment records',
+  supplier_request: 'Supplier quotes, availability, rate documents',
+  follow_up: 'Quotes, emails, booking references',
+  itinerary: 'Programs, day-by-day plans, booking summaries',
+  costing: 'Cost sheets, supplier invoices, markup notes',
+  general_email: 'Quotes, brochures, reference documents',
+}
+
+export function getScreenshotUploadHint(category) {
+  return SCREENSHOT_UPLOAD_HINTS[category] || SCREENSHOT_UPLOAD_HINTS.general_email
+}

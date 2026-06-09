@@ -5,11 +5,13 @@ import { fileURLToPath } from 'node:url'
 import generateHandler from '../api/ai/generate.js'
 import voiceProgramHandler from '../api/ai/voice-program.js'
 import extractFlightHandler from '../api/ai/extract-flight-fields.js'
+import extractTemplateFieldsHandler from '../api/ai/extract-template-fields.js'
 
 const routes = {
   '/api/ai/generate': generateHandler,
   '/api/ai/voice-program': voiceProgramHandler,
   '/api/ai/extract-flight-fields': extractFlightHandler,
+  '/api/ai/extract-template-fields': extractTemplateFieldsHandler,
 }
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')

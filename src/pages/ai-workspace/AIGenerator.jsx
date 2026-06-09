@@ -15,13 +15,13 @@ import {
   AGENT_TEMPLATE_MAP,
   getEmptyInputForCategory,
   getFieldsForCategory,
-  SCREENSHOT_AUTO_FILL_CATEGORIES,
+  getScreenshotUploadHint,
 } from '../../constants/aiTemplateFields'
 import { formatClientName, formatClientOptionLabel } from '../../utils/format'
-import { compressImageForApi, extractTextFromImage } from '../../utils/screenshotOcr'
-import { parseFlightScreenshot } from '../../utils/parseFlightScreenshot'
-import { mergeTemplateInputData, parsedScreenshotsToFlightInput } from '../../utils/mapFlightDataToTemplateFields'
-import { extractFlightFieldsFromImages } from '../../services/aiExtractFlight'
+import { compressImageForApi } from '../../utils/screenshotOcr'
+import { mergeTemplateInputData } from '../../utils/mapFlightDataToTemplateFields'
+import { extractTemplateFieldsFromImages } from '../../services/aiExtractTemplateFields'
+import { extractFieldsFromOcrFallback } from '../../utils/extractFieldsFromOcrFallback'
 
 const MAX_SCREENSHOTS = 3
 
@@ -72,9 +72,10 @@ export default function AIGenerator() {
   const selectedAgent = agents.find((a) => a.id === agentId)
   const selectedTemplate = templates.find((t) => t.id === templateId)
 
-  const supportsScreenshots = Boolean(
-    selectedTemplate && SCREENSHOT_AUTO_FILL_CATEGORIES.includes(selectedTemplate.category),
-  )
+  const supportsScreenshots = Boolean(selectedTemplate)
+  const screenshotHint = selectedTemplate
+    ? getScreenshotUploadHint(selectedTemplate.category)
+    : ''
 
   const compatibleTemplates = useMemo(() => {
     if (!selectedAgent) return templates
@@ -167,27 +168,28 @@ export default function AIGenerator() {
 
       let extracted = {}
 
+      const category = selectedTemplate.category
+
       if (session?.access_token) {
         setExtractStatus('Analysing screenshots with AI…')
         setExtractProgress(40)
-        const imageUrls = nextScreenshots.map((s) => s.preview)
-        extracted = await extractFlightFieldsFromImages(imageUrls, session)
+        extracted = await extractTemplateFieldsFromImages(
+          category,
+          nextScreenshots.map((s) => s.preview),
+          session,
+        )
         setExtractProgress(100)
       } else {
         setExtractStatus('Reading with OCR (first time may take a minute)…')
-        const parsedList = []
-        for (let i = 0; i < newItems.length; i++) {
-          const rawText = await extractTextFromImage(newItems[i].file, (progress, status) => {
-            const overall = ((screenshots.length + i + progress / 100) / nextScreenshots.length) * 100
+        extracted = await extractFieldsFromOcrFallback(
+          category,
+          nextScreenshots.map((s) => s.file).filter(Boolean),
+          (progress, status, index, total) => {
+            const overall = ((index + progress / 100) / total) * 100
             setExtractProgress(Math.round(overall))
             if (status) setExtractStatus(status)
-          })
-          parsedList.push(parseFlightScreenshot(rawText))
-        }
-        extracted = parsedScreenshotsToFlightInput([
-          ...screenshots.map((s) => s.parsed).filter(Boolean),
-          ...parsedList,
-        ])
+          },
+        )
       }
 
       const filledCount = Object.values(extracted).filter((v) => v?.trim()).length
@@ -196,7 +198,7 @@ export default function AIGenerator() {
         setInputData((prev) => mergeTemplateInputData(prev, extracted))
         setFillMessage(`Auto-filled ${filledCount} field${filledCount === 1 ? '' : 's'} from screenshot${nextScreenshots.length > 1 ? 's' : ''}. Review and edit before generating.`)
       } else {
-        setFillMessage('Could not read flight details from the screenshot. Try a clearer crop or fill fields manually.')
+        setFillMessage('Could not read details from the screenshot. Try a clearer crop or fill fields manually.')
       }
     } catch (err) {
       setError(err.message || 'Could not read screenshot.')
@@ -219,7 +221,11 @@ export default function AIGenerator() {
       try {
         setExtracting(true)
         setExtractStatus('Re-analysing screenshots…')
-        const extracted = await extractFlightFieldsFromImages(next.map((s) => s.preview), session)
+        const extracted = await extractTemplateFieldsFromImages(
+          selectedTemplate.category,
+          next.map((s) => s.preview),
+          session,
+        )
         setInputData((prev) => mergeTemplateInputData({
           ...getEmptyInputForCategory(selectedTemplate.category),
           client_name: prev.client_name || '',
@@ -233,14 +239,6 @@ export default function AIGenerator() {
       return
     }
 
-    const parsedOnly = next.filter((s) => s.parsed)
-    if (parsedOnly.length) {
-      const extracted = parsedScreenshotsToFlightInput(parsedOnly.map((s) => s.parsed))
-      setInputData((prev) => mergeTemplateInputData({
-        ...getEmptyInputForCategory(selectedTemplate.category),
-        client_name: prev.client_name || '',
-      }, extracted))
-    }
   }
 
   function updateField(key, value) {
@@ -333,10 +331,8 @@ export default function AIGenerator() {
           <div className="mt-5 space-y-3 border-t border-slate-200/60 pt-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-slate-800">Upload flight screenshots</p>
-                <p className="text-xs text-slate-500">
-                  Ryanair, booking confirmations, fare pages — fields fill automatically
-                </p>
+                <p className="text-sm font-semibold text-slate-800">Upload screenshots or photos</p>
+                <p className="text-xs text-slate-500">{screenshotHint}</p>
               </div>
               {screenshots.length < MAX_SCREENSHOTS && (
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-teal-400 hover:bg-teal-50 hover:text-teal-700">
@@ -386,7 +382,7 @@ export default function AIGenerator() {
             ) : (
               <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                 <ImageIcon className="h-5 w-5 shrink-0 text-slate-400" />
-                Upload outbound + return screenshots to auto-fill route, dates, flights, inclusions, and price.
+                Upload screenshots or photos — template fields fill automatically. Then review and generate.
               </div>
             )}
           </div>
