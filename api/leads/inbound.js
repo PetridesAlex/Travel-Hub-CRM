@@ -98,6 +98,10 @@ export default async function handler(req, res) {
       },
     })
   } catch (err) {
-    return res.status(500).json({ error: err.message || 'Failed to create lead.' })
+    const message = err.message || 'Failed to create lead.'
+    const hint = /client_type|schema cache/i.test(message)
+      ? ' Check SUPABASE_SERVICE_ROLE_KEY on Travel Hub CRM Vercel — it must be the service_role key from the CRM Supabase project (nwdyywbtbgdbdwneovme), not the Honeywell website project.'
+      : ''
+    return res.status(500).json({ error: `${message}${hint}` })
   }
 }
