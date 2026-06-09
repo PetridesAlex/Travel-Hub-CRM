@@ -10,8 +10,9 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
 import { checkPaymentRemindersSlack } from '../services/slackNotify'
-import { formatCurrency, formatDate, formatDateTime, getTodayISO } from '../utils/format'
+import { formatCurrency, formatDate, getTodayISO } from '../utils/format'
 import { LEAD_STATUSES } from '../constants/enums'
+import RecentActivityFeed from '../components/dashboard/RecentActivityFeed'
 
 const PIPELINE_COLORS = {
   new: 'from-sky-400 to-sky-600',
@@ -30,6 +31,8 @@ const ACTIVITY_META = {
   Invoice: { icon: ScrollText, color: 'text-amber-600 bg-amber-50 ring-amber-100' },
   Receipt: { icon: Receipt, color: 'text-green-600 bg-green-50 ring-green-100' },
 }
+
+// ACTIVITY_META kept for potential reuse; Recent Activity uses RecentActivityFeed
 
 const QUICK_ACTIONS = [
   { label: 'Add Client', to: '/clients', icon: Users, accent: 'teal' },
@@ -172,9 +175,9 @@ export default function Dashboard() {
         supabase.from('leads').select('id, destination, follow_up_date, clients(full_name)').eq('follow_up_date', today).not('status', 'in', '(confirmed,lost)').limit(5),
         supabase.from('tasks').select('id, title, due_date').eq('due_date', today).eq('status', 'pending').limit(5),
         supabase.from('bookings').select('id, booking_reference, travel_start_date, travel_end_date, status, clients(full_name, company_name)').gte('travel_start_date', today).in('status', ['pending', 'confirmed']).order('travel_start_date', { ascending: true }).limit(5),
-        supabase.from('clients').select('id, full_name, company_name, client_type, created_at').order('created_at', { ascending: false }).limit(5),
-        supabase.from('leads').select('id, destination, status, created_at').order('created_at', { ascending: false }).limit(5),
-        supabase.from('quotations').select('id, title, status, created_at').order('created_at', { ascending: false }).limit(5),
+        supabase.from('clients').select('id, full_name, company_name, client_type, email, created_at').order('created_at', { ascending: false }).limit(5),
+        supabase.from('leads').select('id, destination, status, notes, created_at, clients(full_name)').order('created_at', { ascending: false }).limit(5),
+        supabase.from('quotations').select('id, title, status, selling_price, created_at').order('created_at', { ascending: false }).limit(5),
         supabase.from('bookings').select('id, booking_reference, status, created_at').order('created_at', { ascending: false }).limit(5),
         supabase.from('invoices').select('id, invoice_number, total_amount, status, created_at').order('created_at', { ascending: false }).limit(5),
         supabase.from('receipts').select('id, receipt_number, amount, created_at').order('created_at', { ascending: false }).limit(5),
@@ -231,34 +234,56 @@ export default function Dashboard() {
 
       const activity = [
         ...(recentClients.data || []).map((r) => ({
+          id: r.id,
           type: 'Client',
           label: r.company_name || r.full_name,
+          subtitle: r.email || (r.client_type === 'business' ? 'Corporate account' : 'Individual traveller'),
           date: r.created_at,
+          to: '/clients',
         })),
         ...(recentLeads.data || []).map((r) => ({
+          id: r.id,
           type: 'Lead',
           label: r.destination || 'New lead',
+          notes: r.notes,
+          subtitle: r.clients?.full_name ? `Client: ${r.clients.full_name}` : '',
+          meta: r.status ? r.status.replace(/_/g, ' ') : '',
           date: r.created_at,
+          to: '/leads',
         })),
         ...(recentQuotes.data || []).map((r) => ({
+          id: r.id,
           type: 'Quotation',
           label: r.title,
+          subtitle: r.selling_price != null ? formatCurrency(r.selling_price) : '',
+          meta: r.status,
           date: r.created_at,
+          to: '/quotations',
         })),
         ...(recentBookings.data || []).map((r) => ({
+          id: r.id,
           type: 'Booking',
           label: r.booking_reference || 'New booking',
+          meta: r.status,
           date: r.created_at,
+          to: '/bookings',
         })),
         ...(recentInvoices.data || []).map((r) => ({
+          id: r.id,
           type: 'Invoice',
           label: r.invoice_number,
+          subtitle: formatCurrency(r.total_amount),
+          meta: r.status,
           date: r.created_at,
+          to: '/invoices',
         })),
         ...(recentReceipts.data || []).map((r) => ({
+          id: r.id,
           type: 'Receipt',
           label: r.receipt_number,
+          subtitle: formatCurrency(r.amount),
           date: r.created_at,
+          to: '/receipts',
         })),
       ]
         .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -500,31 +525,7 @@ export default function Dashboard() {
 
       {/* Recent activity */}
       <SectionCard title="Recent Activity" subtitle="Latest updates across your agency" icon={Clock}>
-        {recentActivity.length === 0 ? (
-          <p className="text-sm text-slate-500">No recent activity yet. Start by adding a client or lead.</p>
-        ) : (
-          <ul className="space-y-1">
-            {recentActivity.map((item, i) => {
-              const meta = ACTIVITY_META[item.type] || ACTIVITY_META.Client
-              const Icon = meta.icon
-              return (
-                <li
-                  key={`${item.type}-${item.date}-${i}`}
-                  className="flex items-center gap-4 rounded-xl px-2 py-3 transition hover:bg-slate-50"
-                >
-                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${meta.color}`}>
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{item.type}</p>
-                    <p className="truncate text-sm font-medium text-slate-900">{item.label}</p>
-                  </div>
-                  <span className="shrink-0 text-xs text-slate-400">{formatDateTime(item.date)}</span>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+        <RecentActivityFeed activity={recentActivity} />
       </SectionCard>
     </div>
   )
