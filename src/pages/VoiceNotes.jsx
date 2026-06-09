@@ -13,7 +13,7 @@ import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
 import VoiceInputButton from '../components/VoiceInputButton'
 import { formatClientName, formatClientOptionLabel, formatDateTime } from '../utils/format'
-import { readImageFile } from '../utils/screenshotOcr'
+import { compressImageForApi } from '../utils/screenshotOcr'
 
 const MAX_IMAGES = 5
 
@@ -125,7 +125,7 @@ export default function VoiceNotes() {
         toAdd.map(async (file) => ({
           id: crypto.randomUUID(),
           name: file.name,
-          preview: await readImageFile(file),
+          preview: await compressImageForApi(file),
           file,
         })),
       )
@@ -394,7 +394,9 @@ export default function VoiceNotes() {
               {generating ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  {images.length ? 'Analysing images & writing…' : 'Writing program…'}
+                  {images.length
+                    ? `Analysing ${images.length} image${images.length > 1 ? 's' : ''} — usually 30–90s…`
+                    : 'Writing program…'}
                 </>
               ) : (
                 <>

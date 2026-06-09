@@ -25,3 +25,25 @@ export function readImageFile(file) {
     reader.readAsDataURL(file)
   })
 }
+
+/** Resize/compress images before sending to the AI API (faster upload + analysis). */
+export async function compressImageForApi(file, maxWidth = 1280, quality = 0.82) {
+  const dataUrl = await readImageFile(file)
+  if (!file.type.startsWith('image/')) return dataUrl
+
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width)
+      const width = Math.round(img.width * scale)
+      const height = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = () => reject(new Error('Could not process image'))
+    img.src = dataUrl
+  })
+}

@@ -10,19 +10,33 @@ export async function generateVoiceProgramViaApi(
     .map((img) => img?.preview || img)
     .filter((url) => typeof url === 'string' && url.startsWith('data:image/'))
 
-  const res = await fetch('/api/ai/voice-program', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({
-      transcript: transcript || '',
-      client_name: clientName || '',
-      client_id: clientId || null,
-      images: imageUrls,
-    }),
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 120000)
+
+  let res
+  try {
+    res = await fetch('/api/ai/voice-program', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        transcript: transcript || '',
+        client_name: clientName || '',
+        client_id: clientId || null,
+        images: imageUrls,
+      }),
+      signal: controller.signal,
+    })
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Generation timed out after 2 minutes. Try fewer or smaller images.')
+    }
+    throw err
+  } finally {
+    clearTimeout(timeout)
+  }
 
   const raw = await res.text()
   let data = {}
