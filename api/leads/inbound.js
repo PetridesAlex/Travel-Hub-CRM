@@ -12,7 +12,36 @@ async function findOrCreateClient(supabase, userId, clientFields) {
       .ilike('email', clientFields.email)
       .maybeSingle()
 
-    if (existing) return { client: existing, created: false }
+    if (existing) {
+      if (clientFields.phone && !existing.phone) {
+        await supabase
+          .from('clients')
+          .update({ phone: clientFields.phone })
+          .eq('id', existing.id)
+        existing.phone = clientFields.phone
+      }
+      return { client: existing, created: false }
+    }
+  }
+
+  if (clientFields.phone) {
+    const { data: byPhone } = await supabase
+      .from('clients')
+      .select('id, full_name, email, phone')
+      .eq('user_id', userId)
+      .eq('phone', clientFields.phone)
+      .maybeSingle()
+
+    if (byPhone) {
+      if (clientFields.email && !byPhone.email) {
+        await supabase
+          .from('clients')
+          .update({ email: clientFields.email })
+          .eq('id', byPhone.id)
+        byPhone.email = clientFields.email
+      }
+      return { client: byPhone, created: false }
+    }
   }
 
   const { data: created, error } = await supabase
@@ -71,15 +100,17 @@ export default async function handler(req, res) {
 
     const slackMessage = buildSlackMessage('lead_created', {
       client_name: client.full_name,
+      email: client.email,
+      phone: client.phone,
       destination: lead.destination,
       budget: lead.budget,
       status: lead.status,
       currency: 'EUR',
+      source: meta.source,
     })
 
     if (slackMessage) {
-      const suffix = meta.source ? `\nSource: ${meta.source}` : ''
-      await sendSlackNotification(`${slackMessage}${suffix}`)
+      await sendSlackNotification(slackMessage)
     }
 
     return res.status(201).json({

@@ -33,9 +33,12 @@ export function buildSlackMessage(type, data = {}) {
       return [
         '🔥 New Lead Created',
         line('Client', data.client_name),
+        line('Email', data.email),
+        line('Phone', data.phone),
         line('Destination', data.destination),
         line('Budget', formatMoney(data.budget, data.currency)),
         line('Status', data.status),
+        line('Source', data.source),
       ].filter(Boolean).join('\n')
 
     case 'client_created':

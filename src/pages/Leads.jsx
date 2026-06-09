@@ -110,6 +110,8 @@ export default function Leads() {
         const linkedClient = clients.find((c) => c.id === payload.client_id)
         notifySlack(session, 'lead_created', {
           client_name: linkedClient ? formatClientName(linkedClient) : '—',
+          email: linkedClient?.email,
+          phone: linkedClient?.phone,
           destination: payload.destination || '—',
           budget: payload.budget,
           status: payload.status || 'new',
@@ -146,11 +148,28 @@ export default function Leads() {
 
   const clientOptions = [{ value: '', label: 'No client linked' }, ...clients.map((c) => ({ value: c.id, label: formatClientOptionLabel(c) }))]
 
+  const linkedClientForForm = clients.find((c) => c.id === form.client_id)
+  const contactClient = editing?.clients || linkedClientForForm
+
   const columns = [
     {
       key: 'client',
       label: 'Client',
       render: (row) => formatClientName(row.clients),
+    },
+    {
+      key: 'email',
+      label: 'Email',
+      render: (row) => row.clients?.email
+        ? <a href={`mailto:${row.clients.email}`} className="text-teal-600 hover:underline">{row.clients.email}</a>
+        : '—',
+    },
+    {
+      key: 'phone',
+      label: 'Phone',
+      render: (row) => row.clients?.phone
+        ? <a href={`tel:${row.clients.phone}`} className="text-teal-600 hover:underline">{row.clients.phone}</a>
+        : '—',
     },
     { key: 'destination', label: 'Destination' },
     {
@@ -227,6 +246,23 @@ export default function Leads() {
         footer={<ModalFooter onCancel={() => setModalOpen(false)} onSave={handleSave} saving={saving} />}
       >
         <div className="space-y-3">
+          {contactClient && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+              <p className="font-medium text-slate-900">Contact details</p>
+              <p className="mt-1 text-slate-700">
+                Email:{' '}
+                {contactClient.email
+                  ? <a href={`mailto:${contactClient.email}`} className="text-teal-600 hover:underline">{contactClient.email}</a>
+                  : '—'}
+              </p>
+              <p className="text-slate-700">
+                Phone:{' '}
+                {contactClient.phone
+                  ? <a href={`tel:${contactClient.phone}`} className="text-teal-600 hover:underline">{contactClient.phone}</a>
+                  : '—'}
+              </p>
+            </div>
+          )}
           <Select label="Client" value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} options={clientOptions} />
           <Input label="Destination" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
           <Select label="Travel Type" value={form.travel_type} onChange={(e) => setForm({ ...form, travel_type: e.target.value })} options={TRAVEL_TYPES} />

@@ -111,6 +111,8 @@ export function parseWebsiteInquiry(body = {}) {
     : inferTravelType(contextText)
 
   const noteLines = [`Source: ${source}`]
+  if (email) noteLines.push(`Email: ${email}`)
+  if (phone) noteLines.push(`Phone: ${phone}`)
   if (packageName) noteLines.push(`Package: ${packageName}`)
   if (message) noteLines.push('', message)
   if (rawEmail && !message) noteLines.push('', '--- Original email ---', String(rawEmail).slice(0, 4000))
