@@ -8,7 +8,7 @@ export default function LeadInquiryCell({ lead }) {
   const isManual = tone === 'manual'
 
   return (
-    <div className={`relative min-w-[13rem] max-w-[18rem] overflow-hidden rounded-xl border p-3 ${theme.card}`}>
+    <div className={`relative min-w-0 max-w-[14rem] overflow-hidden rounded-xl border p-2.5 sm:max-w-[18rem] sm:min-w-[11rem] sm:p-3 ${theme.card}`}>
       <div className={`absolute inset-y-0 left-0 w-1 ${theme.accent}`} aria-hidden />
 
       <div className="flex items-start gap-2.5 pl-1.5">

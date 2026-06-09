@@ -23,17 +23,6 @@ const PIPELINE_COLORS = {
   lost: 'from-slate-300 to-slate-400',
 }
 
-const ACTIVITY_META = {
-  Client: { icon: Users, color: 'text-teal-600 bg-teal-50 ring-teal-100' },
-  Lead: { icon: Target, color: 'text-sky-600 bg-sky-50 ring-sky-100' },
-  Quotation: { icon: FileText, color: 'text-violet-600 bg-violet-50 ring-violet-100' },
-  Booking: { icon: CalendarCheck, color: 'text-emerald-600 bg-emerald-50 ring-emerald-100' },
-  Invoice: { icon: ScrollText, color: 'text-amber-600 bg-amber-50 ring-amber-100' },
-  Receipt: { icon: Receipt, color: 'text-green-600 bg-green-50 ring-green-100' },
-}
-
-// ACTIVITY_META kept for potential reuse; Recent Activity uses RecentActivityFeed
-
 const QUICK_ACTIONS = [
   { label: 'Add Client', to: '/clients', icon: Users, accent: 'teal' },
   { label: 'New Lead', to: '/leads', icon: Target, accent: 'sky' },
@@ -314,7 +303,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-4 sm:space-y-6">
       {/* Hero */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-6 text-white shadow-xl sm:p-8">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-400/60 to-transparent" />

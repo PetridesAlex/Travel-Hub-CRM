@@ -18,13 +18,13 @@ export default function Table({
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_-20px_rgba(15,23,42,0.25)] ${isPremium ? 'ring-1 ring-slate-900/[0.04]' : ''}`}>
+    <div className={`relative max-w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_-20px_rgba(15,23,42,0.25)] ${isPremium ? 'ring-1 ring-slate-900/[0.04]' : ''}`}>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
       {isPremium && (
-        <div className="pointer-events-none absolute inset-x-0 top-[57px] z-10 h-px bg-gradient-to-r from-teal-500/30 via-violet-500/30 to-rose-500/30" />
+        <div className="pointer-events-none absolute inset-x-0 top-[53px] z-10 h-px bg-gradient-to-r from-teal-500/30 via-violet-500/30 to-rose-500/30 sm:top-[57px]" />
       )}
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-0">
+      <div className="-mx-px max-w-full overflow-x-auto">
+        <table className="w-full min-w-0 border-separate border-spacing-0">
           <thead className={isPremium ? 'sticky top-0 z-20' : undefined}>
             <tr className={
               isPremium
@@ -37,8 +37,8 @@ export default function Table({
                   className={
                     col.headerClassName
                     || (isPremium
-                      ? 'border-r border-white/[0.06] px-5 py-4 text-left last:border-r-0 first:rounded-tl-2xl last:rounded-tr-2xl'
-                      : 'px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500')
+                      ? 'border-r border-white/[0.06] px-3 py-3 text-left last:border-r-0 first:rounded-tl-2xl last:rounded-tr-2xl sm:px-4 sm:py-4 lg:px-5'
+                      : 'px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:px-5 sm:py-3.5')
                   }
                 >
                   {col.headerRender ? col.headerRender() : col.label}
@@ -66,7 +66,7 @@ export default function Table({
                   {columns.map((col) => (
                     <td
                       key={col.key}
-                      className={col.cellClassName || (isPremium ? 'px-5 py-4 align-middle text-sm text-slate-700' : 'px-5 py-4 text-sm text-slate-700')}
+                      className={col.cellClassName || (isPremium ? 'px-3 py-3 align-middle text-sm text-slate-700 sm:px-4 sm:py-4 lg:px-5' : 'px-3 py-4 text-sm text-slate-700 sm:px-5')}
                     >
                       {col.render ? col.render(row) : row[col.key]}
                     </td>

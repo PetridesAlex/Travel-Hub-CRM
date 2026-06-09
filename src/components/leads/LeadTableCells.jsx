@@ -20,7 +20,7 @@ export function LeadClientCell({ client }) {
   }
 
   return (
-    <div className="flex min-w-[9rem] items-center gap-3">
+    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
       <div className="relative shrink-0">
         <div className="absolute inset-0 rounded-full bg-teal-400/20 blur-[2px]" />
         <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-xs font-bold text-white ring-2 ring-white shadow-sm">
@@ -48,7 +48,7 @@ export function LeadContactCell({ client }) {
   }
 
   return (
-    <div className="min-w-[10rem] space-y-1.5">
+    <div className="min-w-0 max-w-[11rem] space-y-1 sm:max-w-none sm:min-w-[9rem]">
       {client.email && (
         <a
           href={`mailto:${client.email}`}

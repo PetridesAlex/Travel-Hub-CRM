@@ -14,7 +14,7 @@ import Modal, { ModalFooter } from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import LeadInquiryCell from '../components/leads/LeadInquiryCell'
-import LeadTableHeader, { PREMIUM_HEADER_CLASS } from '../components/leads/LeadTableHeader'
+import LeadTableHeader, { PREMIUM_HEADER_CLASS, PREMIUM_CELL_CLASS } from '../components/leads/LeadTableHeader'
 import {
   LeadActionsCell,
   LeadBudgetCell,
@@ -233,13 +233,15 @@ export default function Leads() {
       label: 'Client',
       headerClassName: PREMIUM_HEADER_CLASS,
       headerRender: () => <LeadTableHeader icon={User} label="Client" accent="teal" />,
+      cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => <LeadClientCell client={row.clients} />,
     },
     {
       key: 'contact',
       label: 'Contact',
-      headerClassName: PREMIUM_HEADER_CLASS,
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden sm:table-cell`,
       headerRender: () => <LeadTableHeader icon={Mail} label="Contact" accent="sky" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden sm:table-cell`,
       render: (row) => <LeadContactCell client={row.clients} />,
     },
     {
@@ -247,21 +249,23 @@ export default function Leads() {
       label: 'Destination',
       headerClassName: PREMIUM_HEADER_CLASS,
       headerRender: () => <LeadTableHeader icon={MapPin} label="Destination" accent="gradient" />,
-      cellClassName: 'px-4 py-3 align-top',
+      cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => <LeadInquiryCell lead={row} />,
     },
     {
       key: 'travel_type',
       label: 'Type',
-      headerClassName: PREMIUM_HEADER_CLASS,
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden md:table-cell`,
       headerRender: () => <LeadTableHeader icon={Tag} label="Type" accent="violet" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden md:table-cell`,
       render: (row) => <LeadTravelTypeBadge travelType={row.travel_type} />,
     },
     {
       key: 'budget',
       label: 'Budget',
-      headerClassName: PREMIUM_HEADER_CLASS,
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden lg:table-cell`,
       headerRender: () => <LeadTableHeader icon={Wallet} label="Budget" accent="emerald" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden lg:table-cell`,
       render: (row) => <LeadBudgetCell budget={row.budget} />,
     },
     {
@@ -269,21 +273,23 @@ export default function Leads() {
       label: 'Status',
       headerClassName: PREMIUM_HEADER_CLASS,
       headerRender: () => <LeadTableHeader icon={Flag} label="Status" accent="amber" />,
+      cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => <LeadStatusBadge status={row.status} />,
     },
     {
       key: 'follow_up_date',
       label: 'Follow-up',
-      headerClassName: PREMIUM_HEADER_CLASS,
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden lg:table-cell`,
       headerRender: () => <LeadTableHeader icon={Calendar} label="Follow-up" accent="rose" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden lg:table-cell`,
       render: (row) => <LeadFollowUpCell followUpDate={row.follow_up_date} status={row.status} />,
     },
     {
       key: 'actions',
       label: 'Actions',
-      headerClassName: `${PREMIUM_HEADER_CLASS} w-20`,
+      headerClassName: `${PREMIUM_HEADER_CLASS} w-16 sm:w-20`,
       headerRender: () => <LeadTableHeader icon={MoreHorizontal} label="Actions" accent="slate" />,
-      cellClassName: 'px-4 py-4 align-middle',
+      cellClassName: `${PREMIUM_CELL_CLASS} w-16 sm:w-20`,
       render: (row) => (
         <LeadActionsCell
           onEdit={() => openEdit(row)}
@@ -294,8 +300,8 @@ export default function Leads() {
   ]
 
   return (
-    <div className="space-y-5">
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 p-5 shadow-xl shadow-slate-900/10 sm:p-6">
+    <div className="min-w-0 max-w-full space-y-4 sm:space-y-5">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 p-4 shadow-xl shadow-slate-900/10 sm:p-6">
         <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-teal-400/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-10 left-1/3 h-32 w-32 rounded-full bg-violet-500/20 blur-3xl" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -304,8 +310,8 @@ export default function Leads() {
               <Sparkles className="h-3.5 w-3.5" />
               Pipeline
             </div>
-            <h2 className="text-2xl font-bold tracking-tight text-white">Leads</h2>
-            <p className="mt-1 text-sm text-slate-300">Track enquiries, contact details, and opportunities in one place</p>
+            <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Leads</h2>
+            <p className="mt-1 text-xs text-slate-300 sm:text-sm">Track enquiries, contact details, and opportunities in one place</p>
           </div>
           <Button onClick={openAdd} className="relative shrink-0 shadow-lg shadow-teal-900/30">
             <Plus className="h-4 w-4" /> Add Lead

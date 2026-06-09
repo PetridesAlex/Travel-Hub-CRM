@@ -17,14 +17,14 @@ export default function LeadTableHeader({ icon: Icon, label, accent = 'slate' })
   const theme = ACCENTS[accent] || ACCENTS.slate
 
   return (
-    <div className="flex items-center gap-2.5">
-      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ring-white/10 ${theme.icon}`}>
-        <Icon className="h-3.5 w-3.5" aria-hidden />
+    <div className="flex min-w-0 items-center gap-1.5 sm:gap-2.5">
+      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ring-1 ring-white/10 sm:h-7 sm:w-7 ${theme.icon}`}>
+        <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden />
       </span>
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className={`h-1 w-1 shrink-0 rounded-full ${theme.dot}`} aria-hidden />
-          <span className={`truncate text-[10px] font-bold uppercase tracking-[0.18em] ${theme.text}`}>
+        <div className="flex items-center gap-1">
+          <span className={`hidden h-1 w-1 shrink-0 rounded-full sm:inline ${theme.dot}`} aria-hidden />
+          <span className={`truncate text-[9px] font-bold uppercase tracking-[0.14em] sm:text-[10px] sm:tracking-[0.18em] ${theme.text}`}>
             {label}
           </span>
         </div>
@@ -34,4 +34,7 @@ export default function LeadTableHeader({ icon: Icon, label, accent = 'slate' })
 }
 
 export const PREMIUM_HEADER_CLASS =
-  'border-r border-white/[0.06] px-5 py-4 text-left last:border-r-0 first:rounded-tl-2xl last:rounded-tr-2xl'
+  'border-r border-white/[0.06] px-3 py-3 text-left last:border-r-0 first:rounded-tl-2xl last:rounded-tr-2xl sm:px-4 sm:py-4 lg:px-5'
+
+export const PREMIUM_CELL_CLASS =
+  'px-3 py-3 align-top sm:px-4 sm:py-4 lg:px-5'

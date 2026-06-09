@@ -13,11 +13,11 @@ export default function AppLayout() {
   const title = currentPage?.label || 'Dashboard'
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen overflow-x-clip bg-slate-50">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex min-h-screen flex-1 flex-col lg:ml-64">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:ml-64">
         <Header title={title} onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-4 lg:p-6">
+        <main className="min-w-0 flex-1 overflow-x-clip p-3 sm:p-4 lg:p-6">
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>
