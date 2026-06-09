@@ -29,7 +29,10 @@ export async function verifyAgencyApiKey(req) {
     .maybeSingle()
 
   if (error) {
-    return { ok: false, status: 500, error: error.message }
+    const message = /invalid api key/i.test(error.message)
+      ? 'Supabase rejected SUPABASE_SERVICE_ROLE_KEY. In Vercel (Travel Hub CRM), use the service_role secret from project nwdyywbtbgdbdwneovme → Settings → API. Not the anon/publishable key, and not the Honeywell website project key.'
+      : error.message
+    return { ok: false, status: 500, error: message }
   }
 
   if (!agency) {
