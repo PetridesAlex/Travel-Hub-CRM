@@ -1,8 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
 
+const CRM_SUPABASE_HOST = 'nwdyywbtbgdbdwneovme.supabase.co'
+
 export function getSupabaseAdmin() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (supabaseUrl && !supabaseUrl.includes(CRM_SUPABASE_HOST)) {
+    return {
+      ok: false,
+      error: `Supabase URL must point to the CRM project (${CRM_SUPABASE_HOST}). Check SUPABASE_URL / VITE_SUPABASE_URL on Vercel.`,
+    }
+  }
 
   if (!supabaseUrl || !serviceRoleKey) {
     return {

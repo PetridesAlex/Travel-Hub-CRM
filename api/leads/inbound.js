@@ -19,11 +19,9 @@ async function findOrCreateClient(supabase, userId, clientFields) {
     .from('clients')
     .insert({
       user_id: userId,
-      client_type: 'individual',
       full_name: clientFields.full_name,
       email: clientFields.email,
       phone: clientFields.phone,
-      notes: 'Auto-created from website inquiry',
     })
     .select('id, full_name, email, phone')
     .single()
@@ -100,7 +98,7 @@ export default async function handler(req, res) {
   } catch (err) {
     const message = err.message || 'Failed to create lead.'
     const hint = /client_type|schema cache/i.test(message)
-      ? ' Check SUPABASE_SERVICE_ROLE_KEY on Travel Hub CRM Vercel — it must be the service_role key from the CRM Supabase project (nwdyywbtbgdbdwneovme), not the Honeywell website project.'
+      ? ' Run supabase/migrations/002_client_types.sql in the CRM Supabase SQL Editor, or confirm VITE_SUPABASE_URL is https://nwdyywbtbgdbdwneovme.supabase.co'
       : ''
     return res.status(500).json({ error: `${message}${hint}` })
   }
