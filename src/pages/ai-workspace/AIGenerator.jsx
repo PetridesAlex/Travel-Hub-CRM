@@ -1,0 +1,303 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Sparkles, Copy, Check, Loader2, FileText } from 'lucide-react'
+import { useAuth } from '../../hooks/useAuth'
+import { getAgents } from '../../services/aiAgents'
+import { getTemplates } from '../../services/aiTemplates'
+import { getClients } from '../../services/clients'
+import { getLeads } from '../../services/leads'
+import { generateAiContent } from '../../services/aiGenerate'
+import { updateGeneration } from '../../services/aiGenerations'
+import Button from '../../components/ui/Button'
+import Select from '../../components/ui/Select'
+import Input from '../../components/ui/Input'
+import {
+  AGENT_TEMPLATE_MAP,
+  getEmptyInputForCategory,
+  getFieldsForCategory,
+} from '../../constants/aiTemplateFields'
+import { formatClientName, formatClientOptionLabel } from '../../utils/format'
+
+export default function AIGenerator() {
+  const { session } = useAuth()
+  const [agents, setAgents] = useState([])
+  const [templates, setTemplates] = useState([])
+  const [clients, setClients] = useState([])
+  const [leads, setLeads] = useState([])
+  const [agentId, setAgentId] = useState('')
+  const [templateId, setTemplateId] = useState('')
+  const [clientId, setClientId] = useState('')
+  const [leadId, setLeadId] = useState('')
+  const [inputData, setInputData] = useState({})
+  const [extraNotes, setExtraNotes] = useState('')
+  const [output, setOutput] = useState('')
+  const [generationId, setGenerationId] = useState(null)
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([
+      getAgents({ activeOnly: true }),
+      getTemplates({ activeOnly: true }),
+      getClients(),
+      getLeads(),
+    ])
+      .then(([a, t, c, l]) => {
+        setAgents(a)
+        setTemplates(t)
+        setClients(c)
+        setLeads(l)
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const selectedAgent = agents.find((a) => a.id === agentId)
+  const selectedTemplate = templates.find((t) => t.id === templateId)
+
+  const compatibleTemplates = useMemo(() => {
+    if (!selectedAgent) return templates
+    const allowed = AGENT_TEMPLATE_MAP[selectedAgent.category] || []
+    return templates.filter((t) => allowed.includes(t.category) || t.agent_id === agentId)
+  }, [templates, selectedAgent, agentId])
+
+  const fieldSchema = useMemo(() => {
+    if (!selectedTemplate) return []
+    return getFieldsForCategory(selectedTemplate.category)
+  }, [selectedTemplate])
+
+  useEffect(() => {
+    if (selectedTemplate) {
+      setInputData(getEmptyInputForCategory(selectedTemplate.category))
+    }
+  }, [selectedTemplate?.id, selectedTemplate?.category])
+
+  useEffect(() => {
+    if (clientId) {
+      const client = clients.find((c) => c.id === clientId)
+      if (client) {
+        setInputData((prev) => ({
+          ...prev,
+          client_name: formatClientName(client),
+        }))
+      }
+    }
+  }, [clientId, clients])
+
+  useEffect(() => {
+    if (leadId) {
+      const lead = leads.find((l) => l.id === leadId)
+      if (lead) {
+        setInputData((prev) => ({
+          ...prev,
+          destination: prev.destination || lead.destination || '',
+          travel_dates: prev.travel_dates || lead.travel_dates || '',
+          notes: [prev.notes, lead.notes].filter(Boolean).join('\n'),
+        }))
+      }
+    }
+  }, [leadId, leads])
+
+  function handleAgentChange(id) {
+    setAgentId(id)
+    setTemplateId('')
+    setOutput('')
+    setGenerationId(null)
+  }
+
+  function handleTemplateChange(id) {
+    setTemplateId(id)
+    setOutput('')
+    setGenerationId(null)
+  }
+
+  function updateField(key, value) {
+    setInputData((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleGenerate() {
+    if (!agentId || !templateId) {
+      setError('Please select an agent and template.')
+      return
+    }
+    setGenerating(true)
+    setError('')
+    try {
+      const result = await generateAiContent({
+        agentId,
+        templateId,
+        clientId,
+        leadId,
+        inputData,
+        extraNotes,
+      }, session)
+      setOutput(result.output || '')
+      setGenerationId(result.generation_id || null)
+    } catch (err) {
+      setError(err.message || 'Generation failed.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function handleCopy() {
+    if (!output) return
+    await navigator.clipboard.writeText(output)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleSave() {
+    if (!output || !generationId) return
+    setSaving(true)
+    setSaveMessage('')
+    try {
+      await updateGeneration(generationId, { generated_output: output })
+      setSaveMessage('Saved to history.')
+    } catch (err) {
+      setSaveMessage(err.message || 'Failed to save.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const agentOptions = [{ value: '', label: 'Select agent...' }, ...agents.map((a) => ({ value: a.id, label: a.name }))]
+  const templateOptions = [{ value: '', label: 'Select template...' }, ...compatibleTemplates.map((t) => ({ value: t.id, label: t.name }))]
+  const clientOptions = [{ value: '', label: 'Link client (optional)' }, ...clients.map((c) => ({ value: c.id, label: formatClientOptionLabel(c) }))]
+  const leadOptions = [{ value: '', label: 'Link lead (optional)' }, ...leads.map((l) => ({ value: l.id, label: l.destination || `Lead ${l.id.slice(0, 8)}` }))]
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold text-slate-900">AI Generator</h2>
+        <p className="text-sm text-slate-500">Select an agent and template, fill in your details, and generate professional content</p>
+      </div>
+
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50 p-5 shadow-sm">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Select label="AI Agent *" value={agentId} onChange={(e) => handleAgentChange(e.target.value)} options={agentOptions} />
+          <Select label="Template *" value={templateId} onChange={(e) => handleTemplateChange(e.target.value)} options={templateOptions} />
+          <Select label="Client" value={clientId} onChange={(e) => setClientId(e.target.value)} options={clientOptions} />
+          <Select label="Lead" value={leadId} onChange={(e) => setLeadId(e.target.value)} options={leadOptions} />
+        </div>
+
+        {selectedAgent && (
+          <p className="mt-3 text-xs text-slate-500">{selectedAgent.description}</p>
+        )}
+
+        {fieldSchema.length > 0 && (
+          <div className="mt-5 space-y-3 border-t border-slate-200/60 pt-5">
+            <p className="text-sm font-semibold text-slate-800">Template fields</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {fieldSchema.map((field) => (
+                field.type === 'textarea' ? (
+                  <div key={field.key} className="sm:col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-slate-700">{field.label}</label>
+                    <textarea
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                      rows={field.rows || 3}
+                      placeholder={field.placeholder}
+                      value={inputData[field.key] || ''}
+                      onChange={(e) => updateField(field.key, e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <Input
+                    key={field.key}
+                    label={field.label}
+                    value={inputData[field.key] || ''}
+                    onChange={(e) => updateField(field.key, e.target.value)}
+                    placeholder={field.placeholder}
+                  />
+                )
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <label className="mb-1 block text-sm font-medium text-slate-700">Additional notes</label>
+          <textarea
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+            rows={3}
+            value={extraNotes}
+            onChange={(e) => setExtraNotes(e.target.value)}
+            placeholder="Any extra instructions for the AI..."
+          />
+        </div>
+
+        {error && (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        )}
+
+        <Button onClick={handleGenerate} disabled={generating || !agentId || !templateId} className="mt-4 w-full" size="lg">
+          {generating ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+          ) : (
+            <><Sparkles className="h-4 w-4" /> Generate</>
+          )}
+        </Button>
+      </div>
+
+      {output && (
+        <div className="relative overflow-hidden rounded-2xl border border-teal-200/80 bg-gradient-to-b from-teal-50/50 to-white shadow-sm">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-500/50 to-transparent" />
+          <div className="flex items-center justify-between border-b border-teal-100 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-white">
+                <FileText className="h-4 w-4" />
+              </span>
+              <div>
+                <h3 className="font-semibold text-slate-900">Generated Output</h3>
+                {generationId && (
+                  <p className="text-xs text-slate-500">
+                    Saved to history · <Link to="/ai-workspace/history" className="text-teal-700 hover:underline">View history</Link>
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {saveMessage && (
+                <span className={`text-xs ${saveMessage.includes('Failed') ? 'text-red-600' : 'text-emerald-600'}`}>
+                  {saveMessage}
+                </span>
+              )}
+              {generationId && (
+                <Button variant="secondary" size="sm" onClick={handleSave} disabled={saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Save
+                </Button>
+              )}
+              <Button variant="secondary" size="sm" onClick={handleCopy}>
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? 'Copied' : 'Copy'}
+              </Button>
+            </div>
+          </div>
+          <div className="p-5">
+            <textarea
+              className="w-full rounded-xl border border-teal-200/60 bg-white px-4 py-3 font-mono text-sm leading-relaxed text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+              rows={18}
+              value={output}
+              onChange={(e) => setOutput(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -21,7 +21,7 @@ export async function getClients(search = '', clientType = '') {
 
   if (search) {
     query = query.or(
-      `full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%,passport_number.ilike.%${search}%`,
+      `full_name.ilike.%${search}%,company_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%,passport_number.ilike.%${search}%`,
     )
   }
 

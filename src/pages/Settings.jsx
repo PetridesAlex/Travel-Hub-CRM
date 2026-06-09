@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { getOpenAiApiKey, setOpenAiApiKey, hasOpenAiApiKey } from '../lib/openaiConfig'
 import { Copy, Check } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
 import Button from '../components/ui/Button'
@@ -36,9 +36,6 @@ export default function Settings() {
   const [savingAgency, setSavingAgency] = useState(false)
   const [agencyMessage, setAgencyMessage] = useState('')
   const [copiedKey, setCopiedKey] = useState(false)
-  const [openAiKey, setOpenAiKey] = useState(() => getOpenAiApiKey())
-  const [openAiMessage, setOpenAiMessage] = useState('')
-
   const displayName = agency?.name || ''
   const nameValue = agencyName || displayName
 
@@ -69,12 +66,6 @@ export default function Settings() {
     await navigator.clipboard.writeText(agency.api_key)
     setCopiedKey(true)
     setTimeout(() => setCopiedKey(false), 2000)
-  }
-
-  function handleOpenAiSave(e) {
-    e.preventDefault()
-    setOpenAiApiKey(openAiKey)
-    setOpenAiMessage(hasOpenAiApiKey() ? 'OpenAI key saved. Voice Notes will use AI generation.' : 'OpenAI key removed.')
   }
 
   const subscriptionStatus = agency?.subscription_status || 'trial'
@@ -150,38 +141,13 @@ export default function Settings() {
       </Card>
 
       <Card>
-        <h3 className="mb-1 font-semibold text-slate-900">OpenAI Integration</h3>
-        <p className="mb-4 text-sm text-slate-500">
-          Powers professional travel program writing in Voice Notes. Get a key at{' '}
-          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-teal-600 hover:underline">
-            platform.openai.com/api-keys
-          </a>
+        <h3 className="mb-1 font-semibold text-slate-900">AI Workspace</h3>
+        <p className="mb-3 text-sm text-slate-500">
+          AI generation is powered securely on the server. Set <code className="rounded bg-slate-100 px-1">OPENAI_API_KEY</code> in your Vercel project environment variables — it is never stored in the browser.
         </p>
-        <form onSubmit={handleOpenAiSave} className="space-y-3">
-          <Input
-            label="OpenAI API Key"
-            type="password"
-            value={openAiKey}
-            onChange={(e) => setOpenAiKey(e.target.value)}
-            placeholder="sk-..."
-          />
-          <p className="text-xs text-slate-400">
-            Stored locally in your browser. Without a key, Voice Notes uses basic formatting only.
-          </p>
-          {openAiMessage && (
-            <p className={`text-sm ${openAiMessage.includes('removed') ? 'text-slate-600' : 'text-emerald-600'}`}>
-              {openAiMessage}
-            </p>
-          )}
-          <div className="flex gap-2">
-            <Button type="submit">Save OpenAI Key</Button>
-            {openAiKey && (
-              <Button type="button" variant="ghost" onClick={() => { setOpenAiKey(''); setOpenAiApiKey(''); setOpenAiMessage('OpenAI key removed.') }}>
-                Clear
-              </Button>
-            )}
-          </div>
-        </form>
+        <Link to="/ai-workspace/generator" className="text-sm font-semibold text-teal-700 hover:text-teal-800">
+          Open AI Generator →
+        </Link>
       </Card>
 
       <Card>

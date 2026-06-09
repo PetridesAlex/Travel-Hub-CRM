@@ -15,7 +15,7 @@ export default function AppLayout() {
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex flex-1 flex-col lg:ml-0">
+      <div className="flex min-h-screen flex-1 flex-col lg:ml-64">
         <Header title={title} onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 lg:p-6">
           <ErrorBoundary>

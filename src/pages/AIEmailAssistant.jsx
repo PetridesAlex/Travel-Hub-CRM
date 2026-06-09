@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Copy, Save, Upload, Loader2, RotateCcw, RefreshCw, ImageIcon, PenLine, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
@@ -333,11 +334,19 @@ export default function AIEmailAssistant() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      <div className="rounded-xl border border-teal-200/80 bg-gradient-to-r from-teal-50 to-white px-4 py-3 text-sm text-teal-900">
+        <strong>New:</strong> Use the secure{' '}
+        <Link to="/ai-workspace/generator" className="font-semibold underline hover:text-teal-700">
+          AI Workspace Generator
+        </Link>
+        {' '}for specialized agents (Flight, Cruise, Hotel, Payment Reminder) with server-side OpenAI.
+      </div>
+
       <div>
         <h2 className="text-xl font-semibold text-slate-900">AI Email Assistant</h2>
         <p className="text-sm text-slate-500">
-          Choose a template, add your details, then generate a professional travel agency email.
-          {canUseAiEmail() ? ' Using AI with your OpenAI key.' : ' Add an OpenAI key in Settings for AI-powered drafts, or use built-in templates.'}
+          Legacy email tool with screenshot OCR and voice. For professional agent-based emails, use AI Workspace.
+          {canUseAiEmail() ? ' Local OpenAI key detected for fallback generation.' : ' Uses built-in templates when no local key is set.'}
         </p>
       </div>
 
@@ -394,13 +403,13 @@ export default function AIEmailAssistant() {
             </p>
           )}
 
-          {showPrompt && (
+          {(showPrompt || showFlightUpload) && (
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <label className="block text-sm font-medium text-slate-700">
-                  What should the email say?
+                  {showPrompt ? 'What should the email say?' : 'Flight screenshots'}
                 </label>
-                {speechSupported && (
+                {showPrompt && speechSupported && (
                   <div className="flex items-center gap-2">
                     <VoiceInputButton
                       size="sm"
@@ -415,31 +424,72 @@ export default function AIEmailAssistant() {
                   </div>
                 )}
               </div>
-              <textarea
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm leading-relaxed focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-                rows={5}
-                value={userPrompt}
-                onChange={(e) => setUserPrompt(e.target.value)}
-                placeholder={getPromptPlaceholder()}
-              />
-              {speechError && (
-                <p className="mt-2 text-sm text-red-600">{speechError}</p>
-              )}
-              <p className="mt-1 text-xs text-slate-400">
-                Type freely, or click the mic and speak — your words appear here in real time. No OpenAI key needed for voice.
-              </p>
-            </div>
-          )}
 
-          {showFlightUpload && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-700">Flight screenshots</p>
-                <p className="text-xs text-slate-400">{screenshots.length}/{MAX_SCREENSHOTS} uploaded</p>
+              <div className="overflow-hidden rounded-lg border border-slate-300 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/20">
+                {showPrompt && (
+                  <textarea
+                    className="w-full resize-none border-0 px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-0"
+                    rows={5}
+                    value={userPrompt}
+                    onChange={(e) => setUserPrompt(e.target.value)}
+                    placeholder={getPromptPlaceholder()}
+                  />
+                )}
+
+                {showFlightUpload && (
+                  <div className={`flex flex-wrap items-center gap-2 bg-slate-50 px-3 py-2 ${showPrompt ? 'border-t border-slate-200' : 'min-h-[72px]'}`}>
+                    {screenshots.length < MAX_SCREENSHOTS && (
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-teal-400 hover:bg-teal-50 hover:text-teal-700">
+                        <Upload className="h-4 w-4" />
+                        {screenshots.length === 0
+                          ? `Upload screenshot${MAX_SCREENSHOTS > 1 ? 's' : ''}`
+                          : 'Add more'}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={handleUpload}
+                          disabled={extracting}
+                        />
+                      </label>
+                    )}
+
+                    {extracting && (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-teal-700">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Reading… {extractProgress}%
+                      </span>
+                    )}
+
+                    {screenshots.length > 0 && (
+                      <>
+                        <span className="text-xs text-slate-500">
+                          {screenshots.length}/{MAX_SCREENSHOTS} uploaded
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleClearScreenshots}
+                          disabled={extracting}
+                          className="text-xs text-red-500 hover:underline"
+                        >
+                          Remove all
+                        </button>
+                      </>
+                    )}
+
+                    {!showPrompt && screenshots.length === 0 && !extracting && (
+                      <span className="text-xs text-slate-400">
+                        Up to {MAX_SCREENSHOTS} flight screenshots
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {screenshots.length > 0 && (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {showFlightUpload && screenshots.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {screenshots.map((item, index) => (
                     <div key={item.id} className="relative rounded-lg border border-slate-200 bg-slate-50 p-2">
                       <img
@@ -462,47 +512,17 @@ export default function AIEmailAssistant() {
                 </div>
               )}
 
-              {screenshots.length < MAX_SCREENSHOTS && (
-                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-6 transition-colors hover:border-teal-400 hover:bg-teal-50/30">
-                  <Upload className="h-5 w-5 text-slate-400" />
-                  <span className="text-sm font-medium text-slate-700">
-                    {screenshots.length === 0
-                      ? `Upload flight screenshots (up to ${MAX_SCREENSHOTS})`
-                      : 'Add more screenshots'}
-                  </span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={handleUpload}
-                    disabled={extracting}
-                  />
-                </label>
+              {speechError && (
+                <p className="mt-2 text-sm text-red-600">{speechError}</p>
               )}
 
-              {screenshots.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearScreenshots}
-                  disabled={extracting}
-                  className="text-xs text-red-500 hover:underline"
-                >
-                  Remove all screenshots
-                </button>
-              )}
-
-              <p className="text-xs text-slate-400">
-                Tip: upload separate screenshots for outbound, return, and fare/inclusions — they will be merged automatically.
+              <p className="mt-1 text-xs text-slate-400">
+                {showPrompt && showFlightUpload
+                  ? 'Type your instructions or upload flight screenshots — outbound, return, and fare images are merged automatically.'
+                  : showPrompt
+                    ? 'Type freely, or click the mic and speak — your words appear here in real time.'
+                    : 'Upload separate screenshots for outbound, return, and fare/inclusions — they will be merged automatically.'}
               </p>
-
-              {extracting && (
-                <div className="flex items-center gap-2 text-sm text-teal-700">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Reading screenshot{screenshots.length > 0 ? 's' : ''}… {extractProgress}%
-                </div>
-              )}
             </div>
           )}
 

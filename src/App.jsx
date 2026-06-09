@@ -19,6 +19,10 @@ import AIEmailAssistant from './pages/AIEmailAssistant'
 import VoiceNotes from './pages/VoiceNotes'
 import MarketingCampaigns from './pages/MarketingCampaigns'
 import Settings from './pages/Settings'
+import AIAgents from './pages/ai-workspace/AIAgents'
+import AITemplates from './pages/ai-workspace/AITemplates'
+import AIGenerator from './pages/ai-workspace/AIGenerator'
+import AIHistory from './pages/ai-workspace/AIHistory'
 import SetupBanner from './components/SetupBanner'
 
 export default function App() {
@@ -48,6 +52,10 @@ export default function App() {
             <Route path="/receipts" element={<Receipts />} />
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/tasks" element={<Tasks />} />
+            <Route path="/ai-workspace/agents" element={<AIAgents />} />
+            <Route path="/ai-workspace/templates" element={<AITemplates />} />
+            <Route path="/ai-workspace/generator" element={<AIGenerator />} />
+            <Route path="/ai-workspace/history" element={<AIHistory />} />
             <Route path="/ai-email" element={<AIEmailAssistant />} />
             <Route path="/voice-notes" element={<VoiceNotes />} />
             <Route path="/marketing" element={<MarketingCampaigns />} />
