@@ -3,7 +3,8 @@
     "api/ai/voice-program.js": { "maxDuration": 60 },
     "api/ai/generate.js": { "maxDuration": 60 },
     "api/ai/extract-flight-fields.js": { "maxDuration": 60 },
-    "api/ai/extract-template-fields.js": { "maxDuration": 60 }
+    "api/ai/extract-template-fields.js": { "maxDuration": 60 },
+    "api/ai/compare-hotel-rates.js": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }

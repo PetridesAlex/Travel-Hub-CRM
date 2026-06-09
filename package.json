@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:api": "node scripts/dev-api.mjs",
+    "dev:api:restart": "lsof -ti :3000 | xargs kill -9 2>/dev/null; node scripts/dev-api.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

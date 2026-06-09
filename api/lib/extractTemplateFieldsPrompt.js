@@ -19,6 +19,20 @@ export const CATEGORY_FIELD_SCHEMAS = {
     { key: 'exclusions', label: 'Price Excludes' },
     { key: 'price', label: 'Total Cost' },
   ],
+  hotel_client_quote: [
+    { key: 'hotel_name', label: 'Hotel Name' },
+    { key: 'destination', label: 'Destination' },
+    { key: 'check_in', label: 'Check-in' },
+    { key: 'check_out', label: 'Check-out' },
+    { key: 'nights', label: 'Nights' },
+    { key: 'guest_details', label: 'Guests' },
+    { key: 'room_type', label: 'Room Type' },
+    { key: 'meal_plan', label: 'Meal Plan' },
+    { key: 'breakfast_included', label: 'Breakfast Included' },
+    { key: 'supplier_net_rate', label: 'Supplier Total' },
+    { key: 'booking_public_rate', label: 'Booking Total' },
+    { key: 'inclusions', label: 'Inclusions' },
+  ],
   hotel_request: [
     { key: 'supplier_name', label: 'Supplier Name' },
     { key: 'destination_or_hotel', label: 'Destination or Hotel' },
@@ -74,6 +88,7 @@ export const CATEGORY_FIELD_SCHEMAS = {
 const CATEGORY_CONTEXT = {
   flight_offer: 'airline booking screenshots (Ryanair, easyJet, etc.)',
   cruise_offer: 'cruise brochures, cabin selections, and fare pages',
+  hotel_client_quote: 'supplier wholesale rates and public booking page screenshots',
   hotel_request: 'hotel availability, rate sheets, and supplier correspondence',
   honeymoon_offer: 'honeymoon package brochures, hotel and resort offers',
   payment_reminder: 'booking confirmations, invoices, and payment records',
