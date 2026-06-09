@@ -13,6 +13,7 @@ import Select from '../components/ui/Select'
 import Badge from '../components/ui/Badge'
 import { TRAVEL_TYPES, LEAD_STATUSES } from '../constants/enums'
 import { formatCurrency, formatDate, formatClientName, formatClientOptionLabel, labelFor } from '../utils/format'
+import { notifySlack } from '../services/slackNotify'
 
 const emptyForm = {
   client_id: '',
@@ -28,7 +29,7 @@ const emptyForm = {
 }
 
 export default function Leads() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const [searchParams] = useSearchParams()
   const [leads, setLeads] = useState([])
   const [clients, setClients] = useState([])
@@ -106,6 +107,14 @@ export default function Leads() {
         await updateLead(editing.id, payload)
       } else {
         const lead = await createLead(payload, user.id)
+        const linkedClient = clients.find((c) => c.id === payload.client_id)
+        notifySlack(session, 'lead_created', {
+          client_name: linkedClient ? formatClientName(linkedClient) : '—',
+          destination: payload.destination || '—',
+          budget: payload.budget,
+          status: payload.status || 'new',
+          currency: 'EUR',
+        })
         if (payload.follow_up_date) {
           await createTask({
             client_id: payload.client_id,

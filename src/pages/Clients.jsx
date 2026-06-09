@@ -13,6 +13,7 @@ import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import { CLIENT_TYPES } from '../constants/enums'
 import { formatClientName, labelFor } from '../utils/format'
+import { notifySlack } from '../services/slackNotify'
 
 const TYPE_TABS = [
   { id: '', label: 'All Clients', icon: Users },
@@ -119,7 +120,7 @@ function FilterField({ label, icon: Icon, children }) {
 }
 
 export default function Clients() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const navigate = useNavigate()
   const [allClients, setAllClients] = useState([])
   const [search, setSearch] = useState('')
@@ -194,7 +195,12 @@ export default function Clients() {
       if (editing) {
         await updateClient(editing.id, payload)
       } else {
-        await createClient(payload, user.id)
+        const created = await createClient(payload, user.id)
+        notifySlack(session, 'client_created', {
+          full_name: formatClientName(created),
+          email: created.email || '—',
+          phone: created.phone || '—',
+        })
       }
       setModalOpen(false)
       loadClients()

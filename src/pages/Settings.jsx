@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, Loader2, MessageSquare } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
+import { testSlackConnection } from '../services/slackNotify'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
@@ -29,13 +30,15 @@ const SUBSCRIPTION_COLORS = {
 }
 
 export default function Settings() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, session } = useAuth()
   const { agency, updateAgencyProfile } = useAgency()
   const [currency, setCurrency] = useState(() => localStorage.getItem('default_currency') || 'EUR')
   const [agencyName, setAgencyName] = useState('')
   const [savingAgency, setSavingAgency] = useState(false)
   const [agencyMessage, setAgencyMessage] = useState('')
   const [copiedKey, setCopiedKey] = useState(false)
+  const [slackTesting, setSlackTesting] = useState(false)
+  const [slackMessage, setSlackMessage] = useState('')
   const displayName = agency?.name || ''
   const nameValue = agencyName || displayName
 
@@ -66,6 +69,19 @@ export default function Settings() {
     await navigator.clipboard.writeText(agency.api_key)
     setCopiedKey(true)
     setTimeout(() => setCopiedKey(false), 2000)
+  }
+
+  async function handleSlackTest() {
+    setSlackTesting(true)
+    setSlackMessage('')
+    try {
+      await testSlackConnection(session)
+      setSlackMessage('Slack connected! Check your channel for the test message.')
+    } catch (err) {
+      setSlackMessage(err.message || 'Failed to send test message to Slack.')
+    } finally {
+      setSlackTesting(false)
+    }
   }
 
   const subscriptionStatus = agency?.subscription_status || 'trial'
@@ -138,6 +154,33 @@ export default function Settings() {
             {savingAgency ? 'Saving...' : 'Save Agency Profile'}
           </Button>
         </form>
+      </Card>
+
+      <Card>
+        <h3 className="mb-1 font-semibold text-slate-900">Slack Notifications</h3>
+        <p className="mb-4 text-sm text-slate-500">
+          Get CRM alerts in Slack when leads, clients, quotations, and AI generations are created, plus payment reminders.
+          Configure <code className="rounded bg-slate-100 px-1">SLACK_WEBHOOK_URL</code> in Vercel environment variables (server-side only).
+        </p>
+        <ul className="mb-4 list-inside list-disc space-y-1 text-sm text-slate-600">
+          <li>New lead created</li>
+          <li>New client created</li>
+          <li>AI generation created</li>
+          <li>New quotation created</li>
+          <li>Payment reminder due (checked daily on dashboard)</li>
+        </ul>
+        <Button type="button" variant="secondary" onClick={handleSlackTest} disabled={slackTesting}>
+          {slackTesting ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Testing…</>
+          ) : (
+            <><MessageSquare className="h-4 w-4" /> Test Slack Connection</>
+          )}
+        </Button>
+        {slackMessage && (
+          <p className={`mt-3 text-sm ${slackMessage.includes('Failed') || slackMessage.includes('not configured') ? 'text-red-600' : 'text-emerald-600'}`}>
+            {slackMessage}
+          </p>
+        )}
       </Card>
 
       <Card>

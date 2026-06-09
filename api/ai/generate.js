@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { buildOpenAiUserMessage, extractOpenAiText } from '../lib/buildAiPrompt.js'
+import { sendSlackNotification } from '../lib/sendSlackNotification.js'
+import { buildSlackMessage } from '../lib/slackMessages.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -147,6 +149,16 @@ export default async function handler(req, res) {
 
   if (insertError) {
     return res.status(500).json({ error: insertError.message })
+  }
+
+  const clientName = enrichedInput.client_name || '—'
+  const slackMessage = buildSlackMessage('ai_generation_created', {
+    agent_name: agent.name,
+    category: template.category,
+    client_name: clientName,
+  })
+  if (slackMessage) {
+    await sendSlackNotification(slackMessage).catch(() => {})
   }
 
   return res.status(200).json({

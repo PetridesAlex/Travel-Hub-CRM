@@ -15,6 +15,7 @@ import Badge from '../components/ui/Badge'
 import Card from '../components/ui/Card'
 import { QUOTATION_STATUSES } from '../constants/enums'
 import { formatCurrency, formatClientName, formatClientOptionLabel, labelFor } from '../utils/format'
+import { notifySlack } from '../services/slackNotify'
 
 const emptyForm = {
   client_id: '',
@@ -31,7 +32,7 @@ const emptyForm = {
 }
 
 export default function Quotations() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [quotations, setQuotations] = useState([])
@@ -111,7 +112,15 @@ export default function Quotations() {
       if (editing) {
         await updateQuotation(editing.id, payload)
       } else {
-        await createQuotation(payload, user.id)
+        const quote = await createQuotation(payload, user.id)
+        const linkedClient = clients.find((c) => c.id === payload.client_id)
+        notifySlack(session, 'quotation_created', {
+          client_name: linkedClient ? formatClientName(linkedClient) : '—',
+          destination: payload.destination || quote.destination || '—',
+          selling_price: quote.selling_price,
+          profit: quote.profit,
+          currency: quote.currency || 'EUR',
+        })
       }
       setModalOpen(false)
       loadData()

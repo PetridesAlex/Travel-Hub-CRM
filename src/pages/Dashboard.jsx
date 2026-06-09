@@ -9,6 +9,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
+import { checkPaymentRemindersSlack } from '../services/slackNotify'
 import { formatCurrency, formatDate, formatDateTime, getTodayISO } from '../utils/format'
 import { LEAD_STATUSES } from '../constants/enums'
 
@@ -105,7 +106,7 @@ function SectionCard({ title, subtitle, icon: Icon, children, action }) {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const { agency } = useAgency()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
@@ -127,7 +128,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboard()
-  }, [])
+    checkPaymentRemindersSlack(session)
+  }, [session])
 
   async function loadDashboard() {
     try {

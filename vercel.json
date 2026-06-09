@@ -4,7 +4,10 @@
     "api/ai/generate.js": { "maxDuration": 60 },
     "api/ai/extract-flight-fields.js": { "maxDuration": 60 },
     "api/ai/extract-template-fields.js": { "maxDuration": 60 },
-    "api/ai/compare-hotel-rates.js": { "maxDuration": 60 }
+    "api/ai/compare-hotel-rates.js": { "maxDuration": 60 },
+    "api/slack/test.js": { "maxDuration": 15 },
+    "api/slack/notify.js": { "maxDuration": 15 },
+    "api/slack/payment-reminders.js": { "maxDuration": 30 }
   },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
