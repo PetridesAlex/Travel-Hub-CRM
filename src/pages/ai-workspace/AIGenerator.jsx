@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Sparkles, Copy, Check, Loader2, FileText, Upload, X, ImageIcon, Scale } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition'
 import { getAgents } from '../../services/aiAgents'
 import { getTemplates } from '../../services/aiTemplates'
 import { getClients } from '../../services/clients'
@@ -9,6 +10,7 @@ import { getLeads } from '../../services/leads'
 import { generateAiContent } from '../../services/aiGenerate'
 import { updateGeneration } from '../../services/aiGenerations'
 import Button from '../../components/ui/Button'
+import VoiceInputButton from '../../components/VoiceInputButton'
 import Select from '../../components/ui/Select'
 import Input from '../../components/ui/Input'
 import {
@@ -65,6 +67,25 @@ export default function AIGenerator() {
   const bookingFileRef = useRef(null)
   const compareDebounceRef = useRef(null)
   const compareRequestRef = useRef(0)
+
+  const {
+    transcript,
+    isListening,
+    isSupported: speechSupported,
+    error: speechError,
+    startListening,
+    stopListening,
+  } = useSpeechRecognition()
+
+  useEffect(() => {
+    if (isListening) {
+      setExtraNotes(transcript)
+    }
+  }, [transcript, isListening])
+
+  function handleStartVoice() {
+    startListening(extraNotes)
+  }
 
   useEffect(() => {
     Promise.all([
@@ -739,14 +760,40 @@ export default function AIGenerator() {
         )}
 
         <div className="mt-4">
-          <label className="mb-1 block text-sm font-medium text-slate-700">Additional notes</label>
-          <textarea
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-            rows={3}
-            value={extraNotes}
-            onChange={(e) => setExtraNotes(e.target.value)}
-            placeholder="Any extra instructions for the AI..."
-          />
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <label className="block text-sm font-medium text-slate-700">Additional notes</label>
+            {speechSupported && (
+              <div className="flex items-center gap-2">
+                <VoiceInputButton
+                  size="sm"
+                  isListening={isListening}
+                  isSupported={speechSupported}
+                  onStart={handleStartVoice}
+                  onStop={stopListening}
+                />
+                <span className="text-xs text-slate-500">
+                  {isListening ? 'Listening…' : 'Voice'}
+                </span>
+              </div>
+            )}
+          </div>
+          {selectedAgent?.category === 'email' && (
+            <p className="mb-2 text-xs text-slate-500">
+              Use voice to describe the email — AI will turn your notes into a professional message.
+            </p>
+          )}
+          <div className="overflow-hidden rounded-xl border border-slate-200 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/20">
+            <textarea
+              className="w-full resize-none border-0 px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-0"
+              rows={4}
+              value={extraNotes}
+              onChange={(e) => setExtraNotes(e.target.value)}
+              placeholder="Type or use voice: e.g. mention budget, dates, tone, or anything the AI should include..."
+            />
+          </div>
+          {speechError && (
+            <p className="mt-2 text-sm text-red-600">{speechError}</p>
+          )}
         </div>
 
         {error && (
