@@ -137,6 +137,7 @@ export function parseWebsiteInquiry(body = {}) {
     meta: {
       source,
       package_name: packageName || null,
+      message: message || null,
     },
   }
 }

@@ -103,6 +103,7 @@ export default async function handler(req, res) {
       email: client.email,
       phone: client.phone,
       destination: lead.destination,
+      message: meta.message,
       budget: lead.budget,
       status: lead.status,
       currency: 'EUR',

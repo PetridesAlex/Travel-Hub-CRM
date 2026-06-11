@@ -27,6 +27,14 @@ function formatDate(value) {
   }
 }
 
+function formatMessageForSlack(value, maxLength = 800) {
+  if (value == null || value === '') return null
+  const text = String(value).replace(/\s+/g, ' ').trim()
+  if (!text) return null
+  if (text.length <= maxLength) return text
+  return `${text.slice(0, maxLength - 1)}…`
+}
+
 export function buildSlackMessage(type, data = {}) {
   switch (type) {
     case 'lead_created':
@@ -36,6 +44,7 @@ export function buildSlackMessage(type, data = {}) {
         line('Email', data.email),
         line('Phone', data.phone),
         line('Destination', data.destination),
+        line('Message', formatMessageForSlack(data.message)),
         line('Budget', formatMoney(data.budget, data.currency)),
         line('Status', data.status),
         line('Source', data.source),

@@ -161,6 +161,7 @@ export default function Leads() {
           email: linkedClient?.email,
           phone: linkedClient?.phone,
           destination: payload.destination || '—',
+          message: payload.notes,
           budget: payload.budget,
           status: payload.status || 'new',
           currency: 'EUR',
