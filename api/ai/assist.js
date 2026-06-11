@@ -1,6 +1,6 @@
-import { verifySession } from '../lib/verifySession.js'
-import { isOpenAiConfigured, createOpenAiResponse } from '../lib/openaiService.js'
-import { AI_ASSIST_TASKS, buildAssistPrompt } from '../lib/aiAssistPrompts.js'
+import { verifySession } from '../../server/lib/verifySession.js'
+import { isOpenAiConfigured, createOpenAiResponse } from '../../server/lib/openaiService.js'
+import { AI_ASSIST_TASKS, buildAssistPrompt } from '../../server/lib/aiAssistPrompts.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
-import { createOpenAiResponse } from '../lib/openaiService.js'
+import { createOpenAiResponse } from '../../server/lib/openaiService.js'
 import {
   buildOpenAiVoiceInput,
   buildVoiceProgramInstructions,
   buildVoiceProgramUserMessage,
-} from '../lib/voiceProgramPrompt.js'
+} from '../../server/lib/voiceProgramPrompt.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

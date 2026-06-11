@@ -1,6 +1,6 @@
-import { sendSlackNotification } from '../lib/sendSlackNotification.js'
-import { buildSlackMessage, SLACK_NOTIFY_TYPES } from '../lib/slackMessages.js'
-import { verifySession } from '../lib/verifySession.js'
+import { sendSlackNotification } from '../../server/lib/sendSlackNotification.js'
+import { buildSlackMessage, SLACK_NOTIFY_TYPES } from '../../server/lib/slackMessages.js'
+import { verifySession } from '../../server/lib/verifySession.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

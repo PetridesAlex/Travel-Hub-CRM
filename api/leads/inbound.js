@@ -1,7 +1,18 @@
-import { verifyAgencyApiKey } from '../lib/verifyAgencyApiKey.js'
-import { parseWebsiteInquiry } from '../lib/parseWebsiteInquiry.js'
-import { sendSlackNotification } from '../lib/sendSlackNotification.js'
-import { buildSlackMessage } from '../lib/slackMessages.js'
+import { verifyAgencyApiKey } from '../../server/lib/verifyAgencyApiKey.js'
+import { parseWebsiteInquiry } from '../../server/lib/parseWebsiteInquiry.js'
+import { sendSlackNotification } from '../../server/lib/sendSlackNotification.js'
+import { buildSlackMessage } from '../../server/lib/slackMessages.js'
+
+function extractMessageFromLeadNotes(notes = '') {
+  const lines = String(notes || '').split('\n').map((l) => l.trim())
+  const body = lines.filter((line) => {
+    if (!line) return false
+    if (/^(source|email|phone|package)\s*:/i.test(line)) return false
+    if (line.startsWith('--- Original email ---')) return false
+    return true
+  })
+  return body.join('\n').trim() || null
+}
 
 async function findOrCreateClient(supabase, userId, clientFields) {
   if (clientFields.email) {
@@ -103,7 +114,7 @@ export default async function handler(req, res) {
       email: client.email,
       phone: client.phone,
       destination: lead.destination,
-      message: meta.message,
+      message: meta.message || extractMessageFromLeadNotes(leadFields.notes),
       budget: lead.budget,
       status: lead.status,
       currency: 'EUR',

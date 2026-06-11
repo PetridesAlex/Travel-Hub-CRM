@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
-import { createOpenAiResponse } from '../lib/openaiService.js'
+import { createOpenAiResponse } from '../../server/lib/openaiService.js'
 import {
   buildExtractTemplateInstructions,
   buildExtractTemplateUserMessage,
   CATEGORY_FIELD_SCHEMAS,
   parseTemplateFieldsJson,
-} from '../lib/extractTemplateFieldsPrompt.js'
+} from '../../server/lib/extractTemplateFieldsPrompt.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

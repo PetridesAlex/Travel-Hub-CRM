@@ -27,6 +27,11 @@ function cleanValue(value) {
   return String(value).replace(/\s+/g, ' ').trim()
 }
 
+function cleanMessage(value) {
+  if (value == null) return ''
+  return String(value).replace(/\r\n/g, '\n').trim()
+}
+
 function extractEmailFromText(text) {
   const match = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
   return match ? match[0] : ''
@@ -81,7 +86,7 @@ function parseFromRawEmail(rawEmail) {
 }
 
 export function parseWebsiteInquiry(body = {}) {
-  const hasStructuredFields = body.full_name || body.email || body.destination || body.message
+  const hasStructuredFields = body.full_name || body.email || body.destination || body.message || body.description
   const rawEmail = body.raw_email || body.email_body || body.body
 
   let fields = hasStructuredFields ? { ...body } : {}
@@ -99,7 +104,7 @@ export function parseWebsiteInquiry(body = {}) {
   const children = parseCount(fields.number_of_children) ?? 0
   const source = cleanValue(fields.source) || (rawEmail ? 'website_email' : 'website_form')
   const packageName = cleanValue(fields.package_name || fields.package)
-  const message = cleanValue(fields.message)
+  const message = cleanMessage(fields.message || fields.description || fields.comments)
 
   const contextText = [destination, packageName, message, rawEmail].filter(Boolean).join('\n')
   const validTravelTypes = new Set([

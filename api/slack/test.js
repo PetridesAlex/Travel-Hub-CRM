@@ -1,5 +1,5 @@
-import { sendSlackNotification } from '../lib/sendSlackNotification.js'
-import { verifySession } from '../lib/verifySession.js'
+import { sendSlackNotification } from '../../server/lib/sendSlackNotification.js'
+import { verifySession } from '../../server/lib/verifySession.js'
 
 const TEST_MESSAGE = `🚀 Travel Hub CRM Connected Successfully
 

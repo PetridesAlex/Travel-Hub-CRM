@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { createOpenAiResponse } from '../lib/openaiService.js'
+import { createOpenAiResponse } from '../../server/lib/openaiService.js'
 import {
   buildCompareHotelRatesInstructions,
   buildCompareHotelRatesUserMessage,
@@ -7,7 +7,7 @@ import {
   computeHotelQuoteFields,
   normalizeExtractedPrices,
   parseCompareHotelRatesJson,
-} from '../lib/compareHotelRatesPrompt.js'
+} from '../../server/lib/compareHotelRatesPrompt.js'
 
 function filterImages(images) {
   return Array.isArray(images)

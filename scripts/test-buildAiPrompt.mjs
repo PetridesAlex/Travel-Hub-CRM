@@ -1,4 +1,4 @@
-import { fillTemplate, buildOpenAiUserMessage } from '../api/lib/buildAiPrompt.js'
+import { fillTemplate, buildOpenAiUserMessage } from '../server/lib/buildAiPrompt.js'
 
 const templateBody = `Dear {{client_name}},
 

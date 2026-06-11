@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
-import { buildOpenAiUserMessage } from '../lib/buildAiPrompt.js'
-import { createOpenAiResponse } from '../lib/openaiService.js'
-import { sendSlackNotification } from '../lib/sendSlackNotification.js'
-import { buildSlackMessage } from '../lib/slackMessages.js'
+import { buildOpenAiUserMessage } from '../../server/lib/buildAiPrompt.js'
+import { createOpenAiResponse } from '../../server/lib/openaiService.js'
+import { sendSlackNotification } from '../../server/lib/sendSlackNotification.js'
+import { buildSlackMessage } from '../../server/lib/slackMessages.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

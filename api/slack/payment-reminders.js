@@ -1,6 +1,6 @@
-import { sendSlackNotification } from '../lib/sendSlackNotification.js'
-import { buildSlackMessage } from '../lib/slackMessages.js'
-import { verifySession } from '../lib/verifySession.js'
+import { sendSlackNotification } from '../../server/lib/sendSlackNotification.js'
+import { buildSlackMessage } from '../../server/lib/slackMessages.js'
+import { verifySession } from '../../server/lib/verifySession.js'
 
 /** Bookings with balance due within the next 7 days (or overdue by 1 day) */
 export default async function handler(req, res) {

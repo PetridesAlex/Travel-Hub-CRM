@@ -44,7 +44,7 @@ export function buildSlackMessage(type, data = {}) {
         line('Email', data.email),
         line('Phone', data.phone),
         line('Destination', data.destination),
-        line('Message', formatMessageForSlack(data.message)),
+        line('Description', formatMessageForSlack(data.message || data.description)),
         line('Budget', formatMoney(data.budget, data.currency)),
         line('Status', data.status),
         line('Source', data.source),
