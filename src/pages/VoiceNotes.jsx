@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Save, Trash2, Sparkles, Copy, Check, Loader2, Upload, X,
-  Mic, ImageIcon, FileText, History, Wand2,
+  Mic, FileText, History, Wand2, User, CalendarDays, Sparkle,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
@@ -16,6 +16,18 @@ import { formatClientName, formatClientOptionLabel, formatDateTime } from '../ut
 import { compressImageForApi } from '../utils/screenshotOcr'
 
 const MAX_IMAGES = 5
+
+function getProgramTitle(note) {
+  const text = (note.generated_content || note.transcript || '').trim()
+  const firstLine = text.split('\n').find((line) => line.trim())?.trim() || 'Travel program'
+  const cleaned = firstLine.replace(/^#+\s*/, '').replace(/^\*+|\*+$/g, '')
+  return cleaned.length > 72 ? `${cleaned.slice(0, 72)}…` : cleaned
+}
+
+function getProgramPreview(note) {
+  const text = (note.generated_content || note.transcript || '').trim()
+  return text.length > 320 ? `${text.slice(0, 320)}…` : text
+}
 
 const STEPS = [
   { id: 1, label: 'Describe', icon: Mic },
@@ -45,6 +57,7 @@ export default function VoiceNotes() {
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [copiedNoteId, setCopiedNoteId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [images, setImages] = useState([])
   const [uploadingImages, setUploadingImages] = useState(false)
@@ -183,6 +196,14 @@ export default function VoiceNotes() {
     await navigator.clipboard.writeText(generatedProgram)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleCopyNote(note) {
+    const text = note.generated_content || note.transcript
+    if (!text) return
+    await navigator.clipboard.writeText(text)
+    setCopiedNoteId(note.id)
+    setTimeout(() => setCopiedNoteId(null), 2000)
   }
 
   async function handleDelete(id) {
@@ -450,83 +471,142 @@ export default function VoiceNotes() {
       )}
 
       {/* Saved programs */}
-      <div>
-        <div className="mb-4 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-white shadow-md">
-            <History className="h-4 w-4" />
-          </span>
-          <div>
-            <h3 className="font-semibold text-slate-900">Saved Programs</h3>
-            <p className="text-xs text-slate-500">{notes.length} saved</p>
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_12px_40px_-24px_rgba(15,23,42,0.2)]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
+
+        <div className="relative border-b border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 px-5 py-5 sm:px-6">
+          <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-teal-500/15 blur-3xl" />
+          <div className="relative flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/20 text-teal-200 ring-1 ring-teal-400/25">
+                <History className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 className="text-base font-semibold tracking-tight text-white sm:text-lg">Saved Programs</h3>
+                <p className="text-xs text-slate-400">Your client-ready travel proposals archive</p>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-teal-200 backdrop-blur-sm">
+              <Sparkle className="h-3.5 w-3.5" />
+              {notes.length} saved
+            </span>
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-12">
-            <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
-          </div>
-        ) : notes.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
-            <ImageIcon className="mx-auto h-8 w-8 text-slate-300" />
-            <p className="mt-3 text-sm font-medium text-slate-600">No saved programs yet</p>
-            <p className="mt-1 text-xs text-slate-400">Your generated travel programs will appear here</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {notes.map((note) => (
-              <div
-                key={note.id}
-                className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md"
-              >
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-                <div className="flex items-start justify-between gap-4 p-5">
-                  <div className="min-w-0 flex-1 space-y-3">
-                    {note.generated_content ? (
-                      <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-800">
-                        {note.generated_content}
-                      </pre>
-                    ) : (
-                      <p className="text-sm text-slate-800">{note.transcript}</p>
-                    )}
-
-                    {note.generated_content && note.transcript && (
-                      <details className="text-xs text-slate-500">
-                        <summary className="cursor-pointer font-medium hover:text-slate-700">View original voice note</summary>
-                        <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{note.transcript}</p>
-                      </details>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                        {formatDateTime(note.created_at)}
-                      </span>
-                      {note.clients?.full_name && (
-                        <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800 ring-1 ring-teal-100">
-                          {note.clients.full_name}
-                        </span>
-                      )}
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        note.generated_content
-                          ? 'bg-violet-50 text-violet-700 ring-1 ring-violet-100'
-                          : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
-                      }`}>
-                        {note.generated_content ? 'AI Program' : 'Raw note'}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(note.id)}
-                    className="rounded-lg border border-transparent p-2 text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                    aria-label="Delete program"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
+        <div className="p-4 sm:p-5">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
+              <p className="text-sm font-medium text-slate-500">Loading saved programs…</p>
+            </div>
+          ) : notes.length === 0 ? (
+            <div className="relative overflow-hidden rounded-xl border border-dashed border-slate-200 bg-gradient-to-b from-slate-50 via-white to-slate-50 px-6 py-14 text-center">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-300/40 to-transparent" />
+              <div className="relative mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-lg shadow-teal-900/20 ring-1 ring-teal-400/20">
+                <FileText className="h-7 w-7 text-white" />
               </div>
-            ))}
-          </div>
-        )}
+              <p className="text-base font-semibold tracking-tight text-slate-800">No saved programs yet</p>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500">
+                Generate a program above, refine it, then save — your proposals will appear here for quick copy and reuse.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {notes.map((note) => {
+                const isAiProgram = Boolean(note.generated_content)
+                const clientName = note.clients ? formatClientName(note.clients) : ''
+
+                return (
+                  <article
+                    key={note.id}
+                    className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/50 transition duration-200 hover:border-teal-200/80 hover:shadow-[0_8px_30px_-18px_rgba(15,23,42,0.18)]"
+                  >
+                    <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-teal-400 to-teal-600 opacity-80" />
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-200/80 to-transparent" />
+
+                    <div className="p-4 pl-5 sm:p-5 sm:pl-6">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+                              isAiProgram
+                                ? 'bg-violet-500/10 text-violet-700 ring-1 ring-violet-200/80'
+                                : 'bg-amber-500/10 text-amber-700 ring-1 ring-amber-200/80'
+                            }`}>
+                              {isAiProgram ? (
+                                <>
+                                  <Sparkles className="h-3 w-3" />
+                                  AI Program
+                                </>
+                              ) : (
+                                'Voice note'
+                              )}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                              <CalendarDays className="h-3 w-3" />
+                              {formatDateTime(note.created_at)}
+                            </span>
+                          </div>
+
+                          <h4 className="mt-2 text-sm font-semibold leading-snug text-slate-900 sm:text-base">
+                            {getProgramTitle(note)}
+                          </h4>
+
+                          {clientName && (
+                            <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-teal-700">
+                              <User className="h-3.5 w-3.5" />
+                              {clientName}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyNote(note)}
+                            className="rounded-lg border border-slate-200/80 bg-white p-2 text-slate-500 shadow-sm transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
+                            aria-label="Copy program"
+                          >
+                            {copiedNoteId === note.id ? (
+                              <Check className="h-4 w-4 text-teal-600" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(note.id)}
+                            className="rounded-lg border border-transparent p-2 text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                            aria-label="Delete program"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-lg border border-slate-200/70 bg-white/80 px-4 py-3 shadow-inner">
+                        <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-700">
+                          {getProgramPreview(note)}
+                        </pre>
+                      </div>
+
+                      {note.generated_content && note.transcript && (
+                        <details className="mt-3 text-xs text-slate-500">
+                          <summary className="cursor-pointer font-semibold uppercase tracking-wide text-slate-500 transition hover:text-teal-700">
+                            Original voice input
+                          </summary>
+                          <p className="mt-2 rounded-lg border border-slate-200/80 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed text-slate-600">
+                            {note.transcript}
+                          </p>
+                        </details>
+                      )}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

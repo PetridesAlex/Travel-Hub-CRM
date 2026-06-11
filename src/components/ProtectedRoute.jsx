@@ -1,6 +1,6 @@
+import { Loader2 } from 'lucide-react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import AppLoadingScreen from './loading/AppLoadingScreen'
 
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -8,13 +8,9 @@ export default function ProtectedRoute({ children }) {
 
   if (loading) {
     return (
-      <AppLoadingScreen
-        title="Launching your workspace"
-        steps={['Verifying your session', 'Clearing for takeoff', 'Opening dashboard']}
-        variant="fullscreen"
-        theme="rocket"
-        durationMs={4000}
-      />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
+      </div>
     )
   }
 

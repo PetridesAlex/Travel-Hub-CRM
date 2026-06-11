@@ -12,18 +12,21 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [launching, setLaunching] = useState(false)
   const { signIn, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!authLoading && user) navigate('/dashboard')
-  }, [user, authLoading, navigate])
+    if (!authLoading && user && !launching) navigate('/dashboard')
+  }, [user, authLoading, launching, navigate])
 
-  if (authLoading) {
+  if (authLoading) return null
+
+  if (launching) {
     return (
       <AppLoadingScreen
         title="Launching your workspace"
-        steps={['Verifying credentials', 'Clearing for takeoff', 'Redirecting to dashboard']}
+        steps={['Verifying credentials', 'Clearing for takeoff', 'Opening dashboard']}
         variant="fullscreen"
         theme="rocket"
         durationMs={4000}
@@ -37,10 +40,12 @@ export default function Login() {
     setLoading(true)
     try {
       await signIn(email, password)
+      setLoading(false)
+      setLaunching(true)
+      await new Promise((resolve) => setTimeout(resolve, 4000))
       navigate('/dashboard')
     } catch (err) {
       setError(err.message)
-    } finally {
       setLoading(false)
     }
   }
