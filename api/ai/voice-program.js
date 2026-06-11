@@ -87,7 +87,7 @@ export default async function handler(req, res) {
     const result = await createOpenAiResponse({
       instructions,
       input,
-      temperature: 0.3,
+      temperature: 0.25,
     })
     output = result.text
   } catch (err) {

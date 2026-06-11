@@ -45,6 +45,15 @@ const VALID_IATA = new Set([
   'BUD', 'CPH', 'ARN', 'OSL', 'HEL', 'LIS', 'OPO', 'MLA', 'BGY', 'CIA', 'TFS', 'PMI',
 ])
 
+const IATA_TO_CITY = {
+  PFO: 'Paphos', ATH: 'Athens', LCA: 'Larnaca', SKG: 'Thessaloniki', HER: 'Heraklion',
+  RHO: 'Rhodes', CFU: 'Corfu', JMK: 'Mykonos', CHQ: 'Chania', LHR: 'London', STN: 'London',
+  LGW: 'London', LTN: 'London', MAN: 'Manchester', DUB: 'Dublin', EDI: 'Edinburgh',
+  CDG: 'Paris', ORY: 'Paris', FCO: 'Rome', MXP: 'Milan', BCN: 'Barcelona', MAD: 'Madrid',
+  AMS: 'Amsterdam', BER: 'Berlin', MUC: 'Munich', FRA: 'Frankfurt', DXB: 'Dubai',
+  IST: 'Istanbul', CAI: 'Cairo', TLV: 'Tel Aviv', VIE: 'Vienna', PRG: 'Prague', BUD: 'Budapest',
+}
+
 const UI_JUNK_WORDS = new Set([
   'update', 'relaunch', 'edit', 'login', 'sign', 'fees', 'review', 'pay', 'seats', 'bags',
   'extras', 'flights', 'selected', 'fare', 'saver', 'time', 'return', 'adult', 'adults',
@@ -104,14 +113,31 @@ function findKnownCitiesInText(fullText) {
   return found
 }
 
+function citiesFromAirportCodes(fullText) {
+  const codes = parseAirportCodes(fullText)
+  return codes.map((code) => IATA_TO_CITY[code] || '').filter(Boolean)
+}
+
 function parseRoute(fullText, lines) {
   // 1. Best: find known cities in text (Ryanair header "Paphos ... Athens")
   const known = findKnownCitiesInText(fullText)
   if (known.length >= 2) {
     return { from: known[0], to: known[1] }
   }
+
+  // 1b. Airport codes when city names are misread by OCR (e.g. PFO → ATH)
+  const codeCities = citiesFromAirportCodes(fullText)
+  if (codeCities.length >= 2) {
+    return { from: codeCities[0], to: codeCities[1] }
+  }
+  if (known.length === 1 && codeCities.length === 1 && known[0] !== codeCities[0]) {
+    return { from: known[0], to: codeCities[0] }
+  }
   if (known.length === 1) {
-    return { from: known[0], to: '' }
+    return { from: known[0], to: codeCities[0] && codeCities[0] !== known[0] ? codeCities[0] : '' }
+  }
+  if (codeCities.length === 1) {
+    return { from: codeCities[0], to: '' }
   }
 
   // 2. "City to City" on a clean line
@@ -492,24 +518,52 @@ function normalizeInclusionText(text) {
     .trim()
 }
 
+function isOcrGarbage(text) {
+  if (!text) return true
+  if (/[©®™@#]/.test(text)) return true
+  if (/\b(review\s*&?\s*pay|checkout|continue|edit search|select flight|login|sign in|myryanair)\b/i.test(text)) return true
+  if (/\d+\s+bags?\s+\d+/i.test(text)) return true
+  if (/[bcdfghjklmnpqrstvwxyz]{5,}/i.test(text)) return true
+
+  const words = text.toLowerCase().split(/\s+/).filter((w) => w.length >= 3)
+  if (!words.length) return true
+
+  let badWords = 0
+  for (const word of words) {
+    const clean = word.replace(/[^a-z]/g, '')
+    if (!clean || clean.length < 3) continue
+    const vowels = (clean.match(/[aeiou]/g) || []).length
+    if (clean.length >= 5 && vowels / clean.length < 0.2) badWords++
+    if (/^(exes|frstoff|uptontseats|fights|gg|v|pay|bags)$/i.test(clean)) badWords++
+  }
+
+  return badWords >= 1 && badWords / words.length >= 0.3
+}
+
 function isInclusionCandidate(line) {
   const text = normalizeInclusionText(line)
-  if (!text || text.length < 4 || text.length > 70) return false
+  if (!text || text.length < 8 || text.length > 55) return false
+  if (isOcrGarbage(text)) return false
   if (/^\d{1,2}:\d{2}/.test(text)) return false
-  if (/[€$£]|\b\d+[.,]\d{2}\b|\btotal\b|\bcontinue\b|\bpay now\b|\bcheckout\b|\bedit search\b/i.test(text)) return false
+  if (/[€$£]|\b\d+[.,]\d{2}\b|\btotal\b|\bcontinue\b|\bpay\b|\bcheckout\b|\bedit search\b/i.test(text)) return false
   if (/^(mon|tue|wed|thu|fri|sat|sun)\b/i.test(text)) return false
   if (UI_JUNK_WORDS.has(text.toLowerCase())) return false
 
   const lower = text.toLowerCase()
-  const keywords = [
-    'bag', 'boarding', 'priority', 'fast track', 'fasttrack', 'fast-track',
-    'seat', 'cabin', 'checked', 'small bag', 'personal', 'insurance', 'flexible',
-    'queue', 'first on', 'off the plane', 'kg', 'carry-on', 'carry on',
-    'hand luggage', 'check-in', 'check in', 'reserved', 'standard seat',
-    'airport', 'lounge', 'meal', 'snack', 'drink', 'refund', 'change flight',
+  const strongPatterns = [
+    /priority boarding/i,
+    /be (?:the )?first on (?:and )?off the plane/i,
+    /\d+\s*kg\s*(?:check-in|checked|cabin|carry-on|carry on)?\s*bag/i,
+    /(?:small|large|cabin|checked|check-in|carry-on|carry on|personal)\s+bag/i,
+    /free seat selection/i,
+    /(?:fast track|fasttrack|fast-track)/i,
+    /queue jump/i,
+    /flexible ticket/i,
+    /online check-in/i,
+    /(?:\d+|two)\s+cabin bags?/i,
   ]
 
-  return keywords.some((keyword) => lower.includes(keyword))
+  return strongPatterns.some((pattern) => pattern.test(lower))
 }
 
 function parseInclusions(fullText, lines) {
@@ -538,7 +592,8 @@ function parseInclusions(fullText, lines) {
 
   function addInclusion(raw) {
     const text = normalizeInclusionText(raw)
-    if (!text || text.length < 4 || text.length > 70) return
+    if (!text || text.length < 8 || text.length > 55) return
+    if (isOcrGarbage(text)) return
     if (/[€$£]|\b\d+[.,]\d{2}\b/.test(text)) return
     const key = text.toLowerCase()
     if (seen.has(key)) return
@@ -572,17 +627,10 @@ function parseInclusions(fullText, lines) {
           const match = candidate.match(pattern)
           if (match) addInclusion(match[0])
         }
-        if (isInclusionCandidate(candidate) && candidate.length <= 60) {
+        if (isInclusionCandidate(candidate)) {
           addInclusion(candidate)
         }
       }
-    }
-  }
-
-  for (const chunk of fullText.split(/[•·✓✔☑]/)) {
-    const trimmed = normalizeInclusionText(chunk)
-    if (isInclusionCandidate(trimmed) && trimmed.length <= 60) {
-      addInclusion(trimmed)
     }
   }
 
@@ -818,22 +866,17 @@ export function mergeInclusionsFromText(flightData, rawText) {
 }
 
 export function buildRouteLabel(flightData) {
-  const first = flightData.legs?.[0]
-  const from = sanitizeCity(first?.from)
-  const to = sanitizeCity(first?.to)
+  if (!flightData?.legs?.length) return ''
+
+  const outbound = flightData.legs[0]
+  const from = sanitizeCity(outbound.from) || sanitizeCode(outbound.fromCode)
+  const to = sanitizeCity(outbound.to) || sanitizeCode(outbound.toCode)
+
   if (!from && !to) return ''
-  if (flightData.tripType === 'Return' && from && to) {
-    return `${from} ↔ ${to}`
+  if (from && to) {
+    return flightData.tripType === 'Return' ? `${from} ↔ ${to}` : `${from} → ${to}`
   }
-  return flightData.legs
-    .map((leg) => {
-      const f = sanitizeCity(leg.from)
-      const t = sanitizeCity(leg.to)
-      if (!f && !t) return null
-      return `${f || '?'} → ${t || '?'}`
-    })
-    .filter(Boolean)
-    .join(' / ')
+  return from || to
 }
 
 export function formatPassengerSummary(flightData) {

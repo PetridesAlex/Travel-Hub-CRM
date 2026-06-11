@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Copy, Save, Upload, Loader2, RotateCcw, RefreshCw, ImageIcon, PenLine, X } from 'lucide-react'
+import {
+  Copy, Save, Upload, Loader2, RotateCcw, RefreshCw, ImageIcon, PenLine, X, Sparkles, Mic,
+  Plane, Ship, Building2, Send, CreditCard, User, Check, ChevronRight, FileText, Lock,
+} from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { getClients } from '../services/clients'
@@ -11,7 +14,6 @@ import { buildEmailFromInput, regenerateEmail } from '../utils/generateFromInstr
 import { formatClientOptionLabel } from '../utils/format'
 import FlightQuotationPreview from '../components/FlightQuotationPreview'
 import FlightQuickEdit from '../components/FlightQuickEdit'
-import VoiceInputButton from '../components/VoiceInputButton'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
@@ -26,6 +28,144 @@ const MODES = [
 ]
 
 const MAX_SCREENSHOTS = 5
+
+const TEMPLATE_UI = {
+  flight_offer: {
+    icon: Plane,
+    accent: 'teal',
+    briefHint: 'Outline route, travel dates, fare conditions, and any requirements for the client.',
+  },
+  cruise_offer: {
+    icon: Ship,
+    accent: 'blue',
+    briefHint: 'Describe ship, itinerary, cabin type, dates, and key selling points.',
+  },
+  hotel_offer: {
+    icon: Building2,
+    accent: 'violet',
+    briefHint: 'Specify property, room type, dates, board basis, and rate details.',
+  },
+  supplier_request: {
+    icon: Send,
+    accent: 'indigo',
+    briefHint: 'State what you need from the supplier — dates, rooms, guests, and terms.',
+  },
+  payment_reminder: {
+    icon: CreditCard,
+    accent: 'amber',
+    briefHint: 'Note amount due, deadline, and booking reference if applicable.',
+  },
+}
+
+const ACCENT = {
+  teal: {
+    selected: 'border-teal-500/80 bg-gradient-to-br from-teal-50 to-white ring-2 ring-teal-500/25 shadow-sm',
+    icon: 'bg-teal-600 text-white shadow-teal-600/25',
+    iconMuted: 'bg-teal-50 text-teal-700 ring-1 ring-teal-100',
+    chip: 'bg-teal-50 text-teal-800 ring-teal-200/80',
+    bar: 'via-teal-500/40',
+    focus: 'focus-within:ring-teal-500/20 focus-within:border-teal-400',
+    recordBg: 'bg-teal-50/70',
+    recordText: 'text-teal-800',
+    dictateHover: 'hover:bg-teal-50 hover:text-teal-800 hover:ring-teal-200',
+    uploadHover: 'hover:border-teal-400 hover:bg-teal-50/30',
+    uploadBtn: 'bg-teal-700 hover:bg-teal-800',
+    progress: 'text-teal-800',
+    sideAccent: 'bg-teal-500/20',
+  },
+  blue: {
+    selected: 'border-blue-500/80 bg-gradient-to-br from-blue-50 to-white ring-2 ring-blue-500/25 shadow-sm',
+    icon: 'bg-blue-600 text-white shadow-blue-600/25',
+    iconMuted: 'bg-blue-50 text-blue-700 ring-1 ring-blue-100',
+    chip: 'bg-blue-50 text-blue-800 ring-blue-200/80',
+    bar: 'via-blue-500/40',
+    focus: 'focus-within:ring-blue-500/20 focus-within:border-blue-400',
+    recordBg: 'bg-blue-50/70',
+    recordText: 'text-blue-800',
+    dictateHover: 'hover:bg-blue-50 hover:text-blue-800 hover:ring-blue-200',
+    uploadHover: 'hover:border-blue-400 hover:bg-blue-50/30',
+    uploadBtn: 'bg-blue-700 hover:bg-blue-800',
+    progress: 'text-blue-800',
+    sideAccent: 'bg-blue-500/20',
+  },
+  violet: {
+    selected: 'border-violet-500/80 bg-gradient-to-br from-violet-50 to-white ring-2 ring-violet-500/25 shadow-sm',
+    icon: 'bg-violet-600 text-white shadow-violet-600/25',
+    iconMuted: 'bg-violet-50 text-violet-700 ring-1 ring-violet-100',
+    chip: 'bg-violet-50 text-violet-800 ring-violet-200/80',
+    bar: 'via-violet-500/40',
+    focus: 'focus-within:ring-violet-500/20 focus-within:border-violet-400',
+    recordBg: 'bg-violet-50/70',
+    recordText: 'text-violet-800',
+    dictateHover: 'hover:bg-violet-50 hover:text-violet-800 hover:ring-violet-200',
+    uploadHover: 'hover:border-violet-400 hover:bg-violet-50/30',
+    uploadBtn: 'bg-violet-700 hover:bg-violet-800',
+    progress: 'text-violet-800',
+    sideAccent: 'bg-violet-500/20',
+  },
+  indigo: {
+    selected: 'border-indigo-500/80 bg-gradient-to-br from-indigo-50 to-white ring-2 ring-indigo-500/25 shadow-sm',
+    icon: 'bg-indigo-600 text-white shadow-indigo-600/25',
+    iconMuted: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100',
+    chip: 'bg-indigo-50 text-indigo-800 ring-indigo-200/80',
+    bar: 'via-indigo-500/40',
+    focus: 'focus-within:ring-indigo-500/20 focus-within:border-indigo-400',
+    recordBg: 'bg-indigo-50/70',
+    recordText: 'text-indigo-800',
+    dictateHover: 'hover:bg-indigo-50 hover:text-indigo-800 hover:ring-indigo-200',
+    uploadHover: 'hover:border-indigo-400 hover:bg-indigo-50/30',
+    uploadBtn: 'bg-indigo-700 hover:bg-indigo-800',
+    progress: 'text-indigo-800',
+    sideAccent: 'bg-indigo-500/20',
+  },
+  amber: {
+    selected: 'border-amber-500/80 bg-gradient-to-br from-amber-50 to-white ring-2 ring-amber-500/25 shadow-sm',
+    icon: 'bg-amber-600 text-white shadow-amber-600/25',
+    iconMuted: 'bg-amber-50 text-amber-800 ring-1 ring-amber-100',
+    chip: 'bg-amber-50 text-amber-900 ring-amber-200/80',
+    bar: 'via-amber-500/40',
+    focus: 'focus-within:ring-amber-500/20 focus-within:border-amber-400',
+    recordBg: 'bg-amber-50/70',
+    recordText: 'text-amber-900',
+    dictateHover: 'hover:bg-amber-50 hover:text-amber-900 hover:ring-amber-200',
+    uploadHover: 'hover:border-amber-400 hover:bg-amber-50/30',
+    uploadBtn: 'bg-amber-700 hover:bg-amber-800',
+    progress: 'text-amber-900',
+    sideAccent: 'bg-amber-500/20',
+  },
+}
+
+function ComposerStep({ number, title, subtitle, accent = 'teal', children }) {
+  const styles = ACCENT[accent] || ACCENT.teal
+  return (
+    <section className="space-y-3">
+      <div className="flex items-start gap-3">
+        <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-sm ${styles.icon}`}>
+          {number}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-semibold tracking-tight text-slate-900">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
+        </div>
+      </div>
+      <div className="pl-10">{children}</div>
+    </section>
+  )
+}
+
+function ReadinessChip({ label, ready, accent = 'teal' }) {
+  const styles = ACCENT[accent] || ACCENT.teal
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ring-1 transition-all ${
+        ready ? styles.chip : 'bg-slate-100 text-slate-400 ring-slate-200/60'
+      }`}
+    >
+      {ready ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current opacity-40" />}
+      {label}
+    </span>
+  )
+}
 
 export default function AIEmailAssistant() {
   const { user, session } = useAuth()
@@ -100,6 +240,10 @@ export default function AIEmailAssistant() {
   }
 
   const selectedTemplate = EMAIL_TEMPLATES.find((t) => t.id === emailType) || EMAIL_TEMPLATES[0]
+  const templateUi = TEMPLATE_UI[emailType] || TEMPLATE_UI.flight_offer
+  const accent = templateUi.accent
+  const accentStyles = ACCENT[accent] || ACCENT.teal
+  const TemplateIcon = templateUi.icon
 
   function hasContentToGenerate() {
     const hasPrompt = Boolean(userPrompt.trim())
@@ -126,11 +270,11 @@ export default function AIEmailAssistant() {
 
   function getPromptPlaceholder() {
     const placeholders = {
-      flight_offer: 'Example: Offer Alex a return flight Paphos to Athens, 19–25 June, €268 TIME SAVER fare with priority boarding. Mention fares can change until ticketed.',
-      cruise_offer: 'Example: 7-night Western Mediterranean cruise on MSC Seaside, balcony cabin, depart Barcelona 12 July, includes drinks package.',
-      hotel_offer: 'Example: 5 nights at Hilton Athens, deluxe room, bed & breakfast, check-in 15 June, sea view if available.',
-      supplier_request: 'Example: Request availability for 2 adults, double room, 3 nights in Santorini, 20–23 August. Need rates and cancellation policy.',
-      payment_reminder: 'Example: Remind Alex that €500 balance is due by 15 June to confirm the booking.',
+      flight_offer: 'Prepare a formal quotation for Mr Alex — return flight Paphos to Athens, 19–25 June. Note fares are subject to availability and passport copies are required to proceed.',
+      cruise_offer: 'Formal cruise offer — 7-night Western Mediterranean, MSC Seaside, balcony cabin, departing Barcelona 12 July. Include drinks package and availability disclaimer.',
+      hotel_offer: 'Hotel quotation — 5 nights Hilton Athens, deluxe room, bed & breakfast, check-in 15 June. Request sea view if available.',
+      supplier_request: 'Request availability and net rates — 2 adults, double room, Santorini, 20–23 August. Include cancellation policy.',
+      payment_reminder: 'Polite payment reminder — €500 balance due by 15 June to confirm the booking.',
     }
     return placeholders[emailType] || placeholders.flight_offer
   }
@@ -332,32 +476,65 @@ export default function AIEmailAssistant() {
   const showClientFields = emailType !== 'supplier_request'
   const showFlightUpload = showUpload && emailType === 'flight_offer'
 
+  const readiness = useMemo(() => {
+    const hasPrompt = Boolean(userPrompt.trim())
+    const hasFlight = Boolean(flightData?.legs?.length)
+    const hasNotes = Boolean(extraNotes.trim())
+    const hasPrice = Boolean(price.trim())
+    let ready = false
+
+    if (emailType === 'payment_reminder') ready = hasPrompt || hasNotes || hasPrice
+    else if (emailType === 'supplier_request') ready = hasPrompt || hasNotes
+    else if (emailType === 'flight_offer') {
+      if (mode === 'write') ready = hasPrompt || hasFlight || hasNotes
+      else if (mode === 'screenshot') ready = hasFlight || screenshots.length > 0
+      else ready = hasPrompt || hasFlight || hasNotes || screenshots.length > 0
+    } else if (mode === 'write') ready = hasPrompt || hasNotes || hasPrice
+    else if (mode === 'screenshot') ready = hasFlight || screenshots.length > 0
+    else ready = hasPrompt || hasNotes || hasPrice || hasFlight || screenshots.length > 0
+
+    return {
+      recipient: showClientFields ? Boolean(recipientName.trim() || clientId) : true,
+      brief: hasPrompt,
+      screenshots: screenshots.length > 0,
+      flightData: hasFlight,
+      ready,
+    }
+  }, [emailType, recipientName, clientId, userPrompt, screenshots.length, flightData, mode, extraNotes, price, showClientFields])
+
+  const briefCharCount = userPrompt.trim().length
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="rounded-xl border border-teal-200/80 bg-gradient-to-r from-teal-50 to-white px-4 py-3 text-sm text-teal-900">
-        <strong>New:</strong> Use the secure{' '}
-        <Link to="/ai-workspace/generator" className="font-semibold underline hover:text-teal-700">
-          AI Workspace Generator
-        </Link>
-        {' '}for specialized agents (Flight, Cruise, Hotel, Payment Reminder) with server-side OpenAI.
-      </div>
-
-      <div>
-        <h2 className="text-xl font-semibold text-slate-900">AI Email Assistant</h2>
-        <p className="text-sm text-slate-500">
-          Legacy email tool with screenshot OCR and voice. AI generation runs securely on the server (GPT-5.5).
-          {canUseAiEmail(session) ? '' : ' Sign in to enable AI-powered emails.'}
-        </p>
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-6 py-5 text-white shadow-lg">
+        <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-teal-500/20 blur-2xl" />
+        <div className="relative flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 ring-1 ring-teal-400/30">
+            <Sparkles className="h-5 w-5 text-teal-300" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">AI Email Assistant</h2>
+            <p className="mt-1 text-sm text-slate-300">
+              Compose professional client emails from voice notes, written briefs, or flight screenshots.
+              {canUseAiEmail(session) ? '' : ' Sign in to enable AI generation.'}{' '}
+              <Link to="/ai-workspace/generator" className="text-teal-300 underline decoration-teal-500/40 underline-offset-2 hover:text-teal-200">
+                AI Workspace
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Mode tabs */}
-      <div className="flex gap-2 rounded-xl bg-slate-100 p-1">
+      <div className="flex gap-1.5 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-1.5 shadow-sm">
         {MODES.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setMode(id)}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-              mode === id ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+              mode === id
+                ? 'bg-white text-teal-800 shadow-sm ring-1 ring-slate-200/80'
+                : 'text-slate-500 hover:bg-white/60 hover:text-slate-800'
             }`}
           >
             <Icon className="h-4 w-4" />
@@ -366,180 +543,358 @@ export default function AIEmailAssistant() {
         ))}
       </div>
 
-      {/* Setup */}
-      <Card>
-        <div className="space-y-4">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Email template</label>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {EMAIL_TEMPLATES.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => setEmailType(template.id)}
-                  className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-                    emailType === template.id
-                      ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                  }`}
-                >
-                  <p className={`text-sm font-medium ${emailType === template.id ? 'text-teal-800' : 'text-slate-900'}`}>
-                    {template.label}
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500">{template.description}</p>
-                </button>
-              ))}
+      {/* Composer */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-md">
+        <div className={`pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent ${accentStyles.bar} to-transparent transition-all duration-500`} />
+
+        {/* Dynamic composer header */}
+        <div className="border-b border-slate-100 bg-gradient-to-b from-slate-50/80 to-white px-5 py-4 sm:px-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-sm transition-all duration-300 ${accentStyles.icon}`}>
+                <TemplateIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Compose</p>
+                <h3 className="text-base font-semibold tracking-tight text-slate-900 transition-all duration-300">
+                  {selectedTemplate.label}
+                </h3>
+                <p className="mt-0.5 text-xs text-slate-500">{selectedTemplate.description}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {showClientFields && <ReadinessChip label="Recipient" ready={readiness.recipient} accent={accent} />}
+              {showPrompt && <ReadinessChip label="Brief" ready={readiness.brief} accent={accent} />}
+              {showFlightUpload && <ReadinessChip label="Screenshots" ready={readiness.screenshots} accent={accent} />}
+              {readiness.flightData && <ReadinessChip label="Flight data" ready accent={accent} />}
             </div>
           </div>
+        </div>
 
-          {showClientFields ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Select label="Link to client" value={clientId} onChange={(e) => setClientId(e.target.value)} options={clientOptions} />
-              <Input label="Recipient name" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} placeholder="e.g. Alex (optional — defaults to Valued Client)" />
+        <div className="space-y-8 px-5 py-6 sm:px-6">
+          <ComposerStep number={1} title="Choose template" subtitle="Select the type of correspondence" accent={accent}>
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              {EMAIL_TEMPLATES.map((template) => {
+                const ui = TEMPLATE_UI[template.id] || TEMPLATE_UI.flight_offer
+                const Icon = ui.icon
+                const styles = ACCENT[ui.accent] || ACCENT.teal
+                const isSelected = emailType === template.id
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => setEmailType(template.id)}
+                    className={`group relative flex items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-all duration-200 ${
+                      isSelected
+                        ? styles.selected
+                        : 'border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
+                      isSelected ? styles.icon + ' shadow-sm' : styles.iconMuted
+                    }`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className={`text-sm font-semibold ${isSelected ? 'text-slate-900' : 'text-slate-800'}`}>
+                          {template.label}
+                        </p>
+                        {isSelected && <Check className="h-3.5 w-3.5 text-slate-500" />}
+                      </div>
+                      <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{template.description}</p>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
-          ) : (
-            <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
-              This template addresses the supplier directly as &quot;Dear Supplier,&quot;.
-            </p>
-          )}
+          </ComposerStep>
 
-          {(showPrompt || showFlightUpload) && (
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label className="block text-sm font-medium text-slate-700">
-                  {showPrompt ? 'What should the email say?' : 'Flight screenshots'}
-                </label>
-                {showPrompt && speechSupported && (
-                  <div className="flex items-center gap-2">
-                    <VoiceInputButton
-                      size="sm"
-                      isListening={isListening}
-                      isSupported={speechSupported}
-                      onStart={handleStartVoice}
-                      onStop={stopListening}
+          <ComposerStep
+            number={2}
+            title={showClientFields ? 'Recipient details' : 'Supplier correspondence'}
+            subtitle={showClientFields ? 'Personalise the greeting and link to your CRM' : 'Formal request addressed to the supplier'}
+            accent={accent}
+          >
+            {showClientFields ? (
+              <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50/40">
+                <div className="grid gap-0 sm:grid-cols-2 sm:divide-x sm:divide-slate-200/80">
+                  <div className="border-b border-slate-200/80 p-4 sm:border-b-0">
+                    <Select
+                      label="Link to client"
+                      value={clientId}
+                      onChange={(e) => setClientId(e.target.value)}
+                      options={clientOptions}
+                      className="[&_select]:border-slate-200/80 [&_select]:bg-white"
                     />
-                    <span className="text-xs text-slate-500">
-                      {isListening ? 'Listening…' : 'Voice'}
-                    </span>
+                  </div>
+                  <div className="p-4">
+                    <Input
+                      label="Recipient name"
+                      value={recipientName}
+                      onChange={(e) => setRecipientName(e.target.value)}
+                      placeholder="e.g. Mr Alex Petrides"
+                      className="[&_input]:border-slate-200/80 [&_input]:bg-white"
+                    />
+                  </div>
+                </div>
+                {recipientName.trim() && (
+                  <div className="flex items-center gap-2 border-t border-slate-200/80 bg-white/60 px-4 py-2.5">
+                    <User className="h-3.5 w-3.5 text-slate-400" />
+                    <p className="text-xs text-slate-600">
+                      Email will open with <span className="font-semibold text-slate-800">Dear {recipientName.trim()},</span>
+                    </p>
                   </div>
                 )}
               </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-xl border border-indigo-200/60 bg-indigo-50/40 px-4 py-3">
+                <Send className="h-4 w-4 text-indigo-600" />
+                <p className="text-sm text-indigo-900">Opens with a formal <span className="font-semibold">Dear Supplier,</span> greeting.</p>
+              </div>
+            )}
+          </ComposerStep>
 
-              <div className="overflow-hidden rounded-lg border border-slate-300 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/20">
-                {showPrompt && (
-                  <textarea
-                    className="w-full resize-none border-0 px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-0"
-                    rows={5}
-                    value={userPrompt}
-                    onChange={(e) => setUserPrompt(e.target.value)}
-                    placeholder={getPromptPlaceholder()}
-                  />
-                )}
+          {(showPrompt || showFlightUpload) && (
+            <ComposerStep
+              number={3}
+              title="Build your brief"
+              subtitle={templateUi.briefHint}
+              accent={accent}
+            >
+            <div className="space-y-3">
+              {showPrompt && (
+                <div
+                  key={emailType}
+                  className={`group/brief relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.04)] transition-all duration-300 ring-0 ${accentStyles.focus} focus-within:ring-2 focus-within:shadow-[0_1px_3px_rgba(15,23,42,0.08),0_12px_32px_rgba(15,23,42,0.06)]`}
+                >
+                  <div className={`pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent ${accentStyles.bar} to-transparent`} />
 
-                {showFlightUpload && (
-                  <div className={`flex flex-wrap items-center gap-2 bg-slate-50 px-3 py-2 ${showPrompt ? 'border-t border-slate-200' : 'min-h-[72px]'}`}>
-                    {screenshots.length < MAX_SCREENSHOTS && (
-                      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-teal-400 hover:bg-teal-50 hover:text-teal-700">
-                        <Upload className="h-4 w-4" />
-                        {screenshots.length === 0
-                          ? `Upload screenshot${MAX_SCREENSHOTS > 1 ? 's' : ''}`
-                          : 'Add more'}
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={handleUpload}
-                          disabled={extracting}
-                        />
-                      </label>
-                    )}
+                  {/* Premium header */}
+                  <div className="relative border-b border-slate-200/60 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-4 py-3.5 sm:px-5">
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.08),transparent_55%)]" />
+                    <div className="relative flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-lg ${accentStyles.icon}`}>
+                          <FileText className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold tracking-tight text-white">Email brief</p>
+                            <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-300 ring-1 ring-white/10">
+                              <Lock className="h-2.5 w-2.5" />
+                              Internal
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-xs text-slate-400">Guidance for the AI — not included in the sent email</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {briefCharCount > 0 && (
+                          <span className="hidden rounded-lg bg-white/10 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-slate-300 ring-1 ring-white/10 sm:inline">
+                            {briefCharCount} characters
+                          </span>
+                        )}
+                        {speechSupported && (
+                          <button
+                            type="button"
+                            onClick={isListening ? stopListening : handleStartVoice}
+                            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold shadow-sm transition-all ${
+                              isListening
+                                ? 'bg-red-500 text-white ring-2 ring-red-400/50 hover:bg-red-600'
+                                : `text-white ring-1 ring-white/20 hover:shadow-md ${accentStyles.uploadBtn}`
+                            }`}
+                          >
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full ${isListening ? 'bg-white/20' : 'bg-white/15'}`}>
+                              <Mic className={`h-3 w-3 ${isListening ? 'animate-pulse' : ''}`} />
+                            </span>
+                            {isListening ? 'Stop dictation' : 'Dictate brief'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                    {extracting && (
-                      <span className="inline-flex items-center gap-1.5 text-xs text-teal-700">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Reading… {extractProgress}%
-                      </span>
-                    )}
+                  {/* Writing surface */}
+                  <div className="relative">
+                    <div className={`pointer-events-none absolute inset-y-4 left-0 w-1 rounded-r-full ${accentStyles.sideAccent}`} />
+                    <textarea
+                      className="min-h-[11rem] w-full resize-none border-0 bg-gradient-to-b from-slate-50/40 to-white px-5 py-5 text-[0.9375rem] leading-[1.7] text-slate-800 placeholder:text-slate-400/80 focus:outline-none focus:ring-0"
+                      rows={6}
+                      value={userPrompt}
+                      onChange={(e) => setUserPrompt(e.target.value)}
+                      placeholder={getPromptPlaceholder()}
+                    />
+                  </div>
 
-                    {screenshots.length > 0 && (
-                      <>
-                        <span className="text-xs text-slate-500">
-                          {screenshots.length}/{MAX_SCREENSHOTS} uploaded
+                  {/* Status footer */}
+                  <div className={`flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2.5 sm:px-5 ${
+                    isListening ? accentStyles.recordBg : 'bg-slate-50/50'
+                  }`}>
+                    {isListening ? (
+                      <div className="flex items-center gap-3">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
                         </span>
+                        <p className={`text-xs font-medium ${accentStyles.recordText}`}>
+                          Listening — speak clearly. Your brief updates in real time above.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                          {briefCharCount > 0 ? 'Brief ready' : 'Awaiting input'}
+                        </p>
+                        {briefCharCount > 0 && (
+                          <span className="text-[11px] tabular-nums text-slate-400 sm:hidden">{briefCharCount} chars</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {showFlightUpload && (
+                <div className={`relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 ${accentStyles.focus} focus-within:ring-2`}>
+                  <div className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${accentStyles.bar} to-transparent`} />
+
+                  <div className="flex items-center gap-2.5 border-b border-slate-100 bg-slate-50/60 px-4 py-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800/5">
+                      <ImageIcon className="h-4 w-4 text-slate-700" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">Flight screenshots</p>
+                      <p className="text-xs text-slate-500">Outbound, return, and fare pages — merged automatically</p>
+                    </div>
+                  </div>
+
+                  {screenshots.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
+                      {screenshots.map((item, index) => (
+                        <div
+                          key={item.id}
+                          className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 shadow-sm"
+                        >
+                          <img
+                            src={item.preview}
+                            alt={`Screenshot ${index + 1}`}
+                            className="h-28 w-full object-cover object-top"
+                          />
+                          <div className="flex items-center justify-between border-t border-slate-100 bg-white px-2.5 py-1.5">
+                            <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                              {index === 0 ? 'Outbound' : index === 1 ? 'Return' : `Image ${index + 1}`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveScreenshot(item.id)}
+                              disabled={extracting}
+                              className="rounded-md p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                              aria-label={`Remove screenshot ${index + 1}`}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {screenshots.length < MAX_SCREENSHOTS && (
+                        <label className={`flex h-full min-h-[8.5rem] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-3 py-4 text-center transition ${accentStyles.uploadHover}`}>
+                          <Upload className="h-5 w-5 text-slate-400" />
+                          <span className="text-xs font-medium text-slate-600">Add image</span>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={handleUpload}
+                            disabled={extracting}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer flex-col items-center justify-center gap-3 px-6 py-10 text-center transition hover:bg-slate-50/50">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${accentStyles.iconMuted}`}>
+                        <Upload className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-800">Upload flight screenshots</p>
+                        <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
+                          PNG or JPG — up to {MAX_SCREENSHOTS} images. We extract routes, times, and pricing for your quotation.
+                        </p>
+                      </div>
+                      <span className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-sm transition ${accentStyles.uploadBtn}`}>
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        Choose files
+                      </span>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handleUpload}
+                        disabled={extracting}
+                      />
+                    </label>
+                  )}
+
+                  {(extracting || screenshots.length > 0) && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/40 px-4 py-2.5">
+                      {extracting ? (
+                        <span className={`inline-flex items-center gap-2 text-xs font-medium ${accentStyles.progress}`}>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Analysing screenshot… {extractProgress}%
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-500">
+                          {screenshots.length} of {MAX_SCREENSHOTS} images attached
+                        </span>
+                      )}
+                      {screenshots.length > 0 && !extracting && (
                         <button
                           type="button"
                           onClick={handleClearScreenshots}
-                          disabled={extracting}
-                          className="text-xs text-red-500 hover:underline"
+                          className="text-xs font-medium text-slate-500 transition hover:text-red-600"
                         >
                           Remove all
                         </button>
-                      </>
-                    )}
-
-                    {!showPrompt && screenshots.length === 0 && !extracting && (
-                      <span className="text-xs text-slate-400">
-                        Up to {MAX_SCREENSHOTS} flight screenshots
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {showFlightUpload && screenshots.length > 0 && (
-                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {screenshots.map((item, index) => (
-                    <div key={item.id} className="relative rounded-lg border border-slate-200 bg-slate-50 p-2">
-                      <img
-                        src={item.preview}
-                        alt={`Screenshot ${index + 1}`}
-                        className="h-24 w-full rounded-md object-contain"
-                      />
-                      <p className="mt-1 truncate text-xs text-slate-500">Image {index + 1}</p>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveScreenshot(item.id)}
-                        disabled={extracting}
-                        className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-slate-500 shadow-sm hover:text-red-600"
-                        aria-label={`Remove screenshot ${index + 1}`}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                      )}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
 
               {speechError && (
-                <p className="mt-2 text-sm text-red-600">{speechError}</p>
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{speechError}</p>
               )}
-
-              <p className="mt-1 text-xs text-slate-400">
-                {showPrompt && showFlightUpload
-                  ? 'Type your instructions or upload flight screenshots — outbound, return, and fare images are merged automatically.'
-                  : showPrompt
-                    ? 'Type freely, or click the mic and speak — your words appear here in real time.'
-                    : 'Upload separate screenshots for outbound, return, and fare/inclusions — they will be merged automatically.'}
-              </p>
             </div>
+            </ComposerStep>
           )}
 
           {flightData && (
-            <>
+            <ComposerStep
+              number={showPrompt || showFlightUpload ? 4 : 3}
+              title="Flight quotation preview"
+              subtitle="Review extracted routes, times, and pricing before generating"
+              accent={accent}
+            >
               <FlightQuotationPreview flightData={flightData} price={price} onEdit={() => setShowEdit(!showEdit)} />
               {showEdit && (
-                <FlightQuickEdit
-                  flightData={flightData}
-                  price={price}
-                  currency={currency}
-                  onChange={setFlightData}
-                  onPriceChange={setPrice}
-                  onCurrencyChange={setCurrency}
-                />
+                <div className="mt-3">
+                  <FlightQuickEdit
+                    flightData={flightData}
+                    price={price}
+                    currency={currency}
+                    onChange={setFlightData}
+                    onPriceChange={setPrice}
+                    onCurrencyChange={setCurrency}
+                  />
+                </div>
               )}
-            </>
+            </ComposerStep>
           )}
 
           {(emailType === 'payment_reminder' || emailType !== 'flight_offer') && (
@@ -563,41 +918,98 @@ export default function AIEmailAssistant() {
             </div>
           )}
 
-          <Input label="Extra notes (optional)" value={extraNotes} onChange={(e) => setExtraNotes(e.target.value)} placeholder="e.g. price includes taxes" />
+          <ComposerStep
+            number={flightData ? (showPrompt || showFlightUpload ? 5 : 4) : (showPrompt || showFlightUpload ? 4 : 3)}
+            title="Review & generate"
+            subtitle="Add any final notes, then compose your formal client email"
+            accent={accent}
+          >
+            <Input
+              label="Additional notes"
+              value={extraNotes}
+              onChange={(e) => setExtraNotes(e.target.value)}
+              placeholder="Optional — e.g. taxes included, payment terms"
+              className="[&_input]:border-slate-200/80"
+            />
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button onClick={handleGenerate} className="flex-1" size="lg" disabled={extracting || isListening || generating}>
-              {generating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating…
-                </>
-              ) : extracting ? (
-                'Reading screenshot…'
-              ) : (
-                `Generate ${selectedTemplate.label}`
+            <div className={`relative mt-4 overflow-hidden rounded-2xl border shadow-[0_1px_3px_rgba(15,23,42,0.06)] transition-all duration-300 ${
+              readiness.ready
+                ? 'border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900'
+                : 'border-dashed border-slate-300 bg-slate-50/40'
+            }`}>
+              {readiness.ready && (
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-teal-400/40 to-transparent" />
               )}
-            </Button>
-            {speechSupported && (
-              <Button
-                variant="secondary"
-                size="lg"
-                onClick={handleStopVoiceAndGenerate}
-                disabled={extracting || !isListening}
-                className="sm:min-w-[180px]"
-              >
-                Stop & Generate
-              </Button>
-            )}
-            <Button variant="ghost" onClick={handleReset}>
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </div>
-          {generateError && (
-            <p className="text-sm text-red-600">{generateError}</p>
-          )}
+
+              <div className={`p-4 sm:p-5 ${readiness.ready ? '' : 'sm:p-4'}`}>
+                {readiness.ready && (
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-300 ring-1 ring-white/10">
+                      <Sparkles className="h-3 w-3 text-teal-300" />
+                      Ready to compose
+                    </span>
+                    <span className="text-xs text-slate-400">{selectedTemplate.label} · formal business English</span>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={handleGenerate}
+                    disabled={extracting || isListening || generating}
+                    className={`inline-flex flex-1 items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-sm font-semibold shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                      readiness.ready
+                        ? 'bg-white text-slate-900 hover:bg-slate-50 focus:ring-white/50 focus:ring-offset-slate-800'
+                        : 'bg-slate-200 text-slate-500'
+                    }`}
+                  >
+                    {generating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Composing professional email…
+                      </>
+                    ) : extracting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Analysing screenshot…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className={`h-4 w-4 ${readiness.ready ? 'text-teal-600' : ''}`} />
+                        Generate {selectedTemplate.label}
+                        <ChevronRight className="h-4 w-4 opacity-60" />
+                      </>
+                    )}
+                  </button>
+                  {speechSupported && (
+                    <Button
+                      variant="secondary"
+                      size="lg"
+                      onClick={handleStopVoiceAndGenerate}
+                      disabled={extracting || !isListening}
+                      className="sm:min-w-[180px]"
+                    >
+                      Stop & Generate
+                    </Button>
+                  )}
+                  <Button variant="ghost" onClick={handleReset} title="Reset form" className={readiness.ready ? 'text-slate-400 hover:bg-white/10 hover:text-white' : ''}>
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {!readiness.ready && !generating && !extracting && (
+                <p className="border-t border-slate-200/60 px-4 py-2.5 text-xs text-slate-500">
+                  Add a brief, upload screenshots, or link a client to enable generation.
+                </p>
+              )}
+              {generateError && (
+                <p className="border-t border-red-200/60 bg-red-50 px-4 py-2.5 text-sm text-red-700">{generateError}</p>
+              )}
+            </div>
+          </ComposerStep>
         </div>
-      </Card>
+      </div>
 
       {/* Editable email output */}
       {hasGenerated && (

@@ -1,39 +1,37 @@
-export const EMAIL_SYSTEM_PROMPT = `You are an expert travel consultant.
+export const EMAIL_SYSTEM_PROMPT = `You are a senior travel consultant at an established professional travel agency. You write polished, fully formal business correspondence suitable for corporate clients and discerning travellers.
 
-Always generate emails in professional travel agency format.
+TONE AND STYLE:
+- Fully formal and professional at all times — courteous, confident, and authoritative.
+- Use complete, grammatically correct sentences throughout.
+- Never use casual language, slang, contractions, emojis, or filler phrases.
 
-Structure:
+WHEN PROCESSING VOICE NOTES OR CASUAL INSTRUCTIONS:
+- Completely REWRITE spoken or casual notes into formal business English.
+- Remove all speech fillers ("um", "so basically", "I want you to", etc.).
+- Preserve EVERY factual detail: names, dates, times, flight numbers, routes, prices, currencies, and inclusions.
 
+WHEN SCREENSHOT OR EXTRACTED DATA IS PROVIDED:
+- Copy ALL factual information EXACTLY as provided — do not paraphrase, round, or guess.
+- Present outbound and return flights separately when both are provided.
+
+EMAIL STRUCTURE:
 Dear [Client Name],
-
 Introduction
-
-Flight Details
-
-Inclusions
-
-Price
-
+Details section (Flight / Cruise / Hotel / Request / Payment)
+Price (when provided)
 Important Notes
-
 Kind Regards
 
-Never use:
-- Program Overview
-- Pricing Summary
-- Accommodation To Be Confirmed
-- Travel Insurance sections
-unless specifically requested.
-
+NEVER create an "Inclusions" section. Never copy agent voice instructions into the email.
+Never use Program Overview, Pricing Summary, or Travel Insurance sections unless specifically requested.
 Only use information provided by the user.
-
 Output only the email body ready to send.`
 
 export const EMAIL_TEMPLATES = [
   {
     id: 'flight_offer',
     label: 'Flight Offer',
-    description: 'Quotation email with flight details, inclusions, and price',
+    description: 'Formal quotation with routes, schedules, and pricing',
     subjectPrefix: 'Flight Quotation',
     detailsHeading: 'Flight Details',
     recipient: 'client',
@@ -81,16 +79,17 @@ export function getTemplateGuidance(templateId) {
   const greeting = template.recipient === 'supplier' ? 'Dear Supplier,' : 'Dear [Client Name],'
 
   const sectionMap = {
-    flight_offer: `Use section heading "Flight Details" for routes, dates, times, airline, and fare type.`,
-    cruise_offer: `Use section heading "Cruise Details" instead of Flight Details. Include ship, itinerary, cabin, and dates.`,
-    hotel_offer: `Use section heading "Hotel Details" instead of Flight Details. Include property name, room type, dates, and board basis.`,
-    supplier_request: `Address as "Dear Supplier,". Use "Request Details" for what you need. Omit Price unless the user provided a budget. Focus on availability and rates request.`,
-    payment_reminder: `Use "Payment Details" with amount and due date. Keep tone polite and professional. Omit Flight Details unless the user mentions travel specifics.`,
+    flight_offer: `Use section heading "Flight Details". Include every route, date, time, airline, flight number, duration, and fare type from the provided data.`,
+    cruise_offer: `Use section heading "Cruise Details" instead of Flight Details. Include ship, itinerary, cabin, dates, and all provided specifics.`,
+    hotel_offer: `Use section heading "Hotel Details" instead of Flight Details. Include property name, room type, dates, board basis, and all provided specifics.`,
+    supplier_request: `Address as "Dear Supplier,". Use "Request Details" for what you need. Omit Price unless the user provided a budget. Use formal supplier-facing language.`,
+    payment_reminder: `Use "Payment Details" with amount and due date. Maintain a polite, professional, and firm tone. Omit Flight Details unless the user mentions travel specifics.`,
   }
 
   return `Email template: ${template.label}
 ${sectionMap[templateId] || ''}
 Opening line: ${greeting}
+Rewrite any voice notes into fully formal English. Copy all screenshot data exactly.
 Adapt section headings to this template. Follow the standard structure. Output body only.`
 }
 

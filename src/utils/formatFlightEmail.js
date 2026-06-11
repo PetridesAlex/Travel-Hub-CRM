@@ -46,11 +46,7 @@ export function formatFlightDataForEmail(flightData) {
 
   const legBlocks = flightData.legs.map(formatLegBlock)
 
-  const inclusionBlock = flightData.inclusions?.length
-    ? ['', "WHAT'S INCLUDED", ...flightData.inclusions.map((item) => `• ${item}`)]
-    : []
-
-  return [...header, '', ...legBlocks, ...inclusionBlock].join('\n')
+  return [...header, '', ...legBlocks].join('\n')
 }
 
 export function formatLegSummary(leg) {

@@ -10,25 +10,25 @@ const SECTIONS = [
 ]
 
 export function buildVoiceProgramInstructions(agencyName) {
-  return `You are a senior travel consultant at ${agencyName}, writing a client-ready travel program proposal.
+  return `You are a senior travel consultant at ${agencyName}, writing a formal, client-ready travel program proposal.
 
-Transform rough spoken agent notes and attached travel images (hotel brochures, flight screenshots, itineraries, rate sheets) into polished professional copy.
+Transform rough spoken agent notes and attached travel images (hotel brochures, flight screenshots, itineraries, rate sheets) into polished, fully professional business copy.
 
 STRICT RULES:
 1. Completely REWRITE the content. Never copy spoken phrasing, filler words, or rambling from the voice note.
 2. NEVER repeat the same information twice. Each fact appears exactly once in the most relevant section.
 3. Remove all speech fillers ("hello", "so basically", "I want you to", "please include", "um", etc.).
-4. Write in clear, confident, professional business English — complete sentences, no awkward phrasing.
-5. Be concise. Quality over length. Do not pad with generic filler text.
+4. Write in fully formal, professional business English — complete sentences, no casual language, slang, or contractions.
+5. Be concise and authoritative. Quality over length. Do not pad with generic filler text.
 6. Use these section headings only when relevant (omit empty sections):
    ${SECTIONS.join(', ')}
 7. Program Overview: 2–3 polished sentences summarising the trip — not a list of raw notes.
 8. Use bullet points only where they improve readability (flights, inclusions, pricing).
 9. Do NOT invent prices, dates, flight numbers, or hotel details not mentioned in the notes or images — write "To be confirmed" instead.
-10. Preserve currencies exactly as mentioned (£, €, $).
+10. Preserve currencies, flight numbers, times, and dates exactly as mentioned or shown in images (£, €, $).
 11. Close with a brief professional sign-off from ${agencyName}.
 12. Do not use markdown symbols (#, **, etc.). Plain text only.
-13. Extract all useful details from images when provided: hotel names, room types, flight times, airlines, prices, dates, inclusions.`
+13. Extract ALL useful details from images when provided: hotel names, room types, flight times, airlines, prices, dates, inclusions. Copy figures exactly — do not round or paraphrase.`
 }
 
 export function buildVoiceProgramUserMessage({ transcript, clientName, imageCount }) {
@@ -37,7 +37,7 @@ export function buildVoiceProgramUserMessage({ transcript, clientName, imageCoun
 
   if (transcript?.trim()) {
     parts.push(
-      'Raw agent voice note (do NOT copy this wording — rewrite professionally):',
+      'Raw agent voice note (do NOT copy this wording — rewrite into fully formal professional English, preserving every fact):',
       '"""',
       transcript.trim(),
       '"""',
@@ -48,10 +48,13 @@ export function buildVoiceProgramUserMessage({ transcript, clientName, imageCoun
   }
 
   if (hasImages) {
-    parts.push(`${imageCount} travel image(s) attached — analyse them for hotels, flights, pricing, room types, and inclusions.`, '')
+    parts.push(
+      `${imageCount} travel image(s) attached — analyse them carefully and extract all hotels, flights, pricing, room types, dates, times, and inclusions. Copy all figures and details exactly as shown.`,
+      '',
+    )
   }
 
-  parts.push('Write the complete travel program proposal now.')
+  parts.push('Write the complete, fully formal travel program proposal now.')
   return parts.join('\n')
 }
 

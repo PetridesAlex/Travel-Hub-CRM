@@ -30,10 +30,6 @@ function buildStructuredBody({
     sections.push('', detailsHeading, details.trim())
   }
 
-  if (inclusions?.trim()) {
-    sections.push('', 'Inclusions', inclusions.trim())
-  }
-
   if (price?.trim()) {
     sections.push('', 'Price', price.trim())
   }
@@ -42,7 +38,7 @@ function buildStructuredBody({
     sections.push('', 'Important Notes', importantNotes.trim())
   }
 
-  sections.push('', 'Kind Regards,', 'Your Travel Agency Team')
+  sections.push('', 'Kind Regards,', '[Your Travel Agency]')
   return sections.join('\n')
 }
 
@@ -63,11 +59,11 @@ function buildTemplateEmail({
   const templateConfig = {
     flight_offer: {
       detailsHeading: 'Flight Details',
-      introduction: `Thank you for your enquiry. Please find below our flight quotation${destination ? ` for ${destination}` : ''}.`,
+      introduction: `Thank you for your enquiry. We are pleased to provide the following flight quotation${destination ? ` for ${destination}` : ''}.`,
       details: flightDetails || combinedNotes,
-      inclusions: flightDetails ? combinedNotes : '',
+      inclusions: '',
       price: price ? formatPriceLine(price, currency) : '',
-      importantNotes: 'Fares are subject to change until ticketed. Please confirm if you wish to proceed.',
+      importantNotes: 'Please note that fares are subject to availability and may change until the booking is confirmed and ticketed. Should you wish to proceed, kindly confirm at your earliest convenience.',
     },
     cruise_offer: {
       detailsHeading: 'Cruise Details',

@@ -116,9 +116,10 @@ ${keyLines}
 Rules:
 - Use only information visible in the images.
 - Do not invent prices, dates, names, or flight numbers.
-- Preserve currencies and reference numbers exactly.
+- Preserve currencies, times, dates, and reference numbers exactly as shown — do not round or paraphrase.
+- Extract every visible detail: flight times, hotel names, room types, meal plans, inclusions, and totals.
 - Multi-line values are allowed for detail fields.
-- If multiple images, merge information correctly.
+- If multiple images, merge information correctly without losing any detail.
 - Output raw JSON only, no markdown.`
 }
 

@@ -99,12 +99,21 @@ export default async function handler(req, res) {
     extraNotes: extra_notes,
   })
 
+  const professionalInstructions = `${agent.system_prompt}
+
+ADDITIONAL OUTPUT REQUIREMENTS (always apply):
+- Write in fully formal, professional business English — suitable for corporate clients.
+- Rewrite any informal voice notes into polished formal language; preserve every factual detail.
+- Copy all extracted screenshot or provided data exactly — do not omit, alter, or round prices, dates, times, or reference numbers.
+- Use complete sentences. No casual language, slang, contractions, or filler phrases.
+- Output only the final ready-to-send content — no commentary or markdown.`
+
   let output
   try {
     const result = await createOpenAiResponse({
-      instructions: agent.system_prompt,
+      instructions: professionalInstructions,
       input: userMessage,
-      temperature: 0.3,
+      temperature: 0.25,
     })
     output = result.text
   } catch (err) {

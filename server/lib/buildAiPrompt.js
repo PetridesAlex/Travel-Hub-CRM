@@ -70,7 +70,9 @@ export function buildOpenAiUserMessage({ templateBody, inputData, agencyName, ex
   const structured = buildStructuredInput(inputData)
 
   const parts = [
-    'Use the template structure below as a guide. Improve wording professionally but do not add sections not in the template.',
+    'Use the template structure below as a guide. Produce fully formal, professional business English suitable for sending directly to a client or supplier.',
+    'Rewrite any informal voice notes into polished formal language while preserving every factual detail.',
+    'Copy all extracted screenshot data exactly — do not omit, alter, or round prices, dates, times, or flight numbers.',
     '',
     '--- TEMPLATE ---',
     filled,
@@ -78,16 +80,20 @@ export function buildOpenAiUserMessage({ templateBody, inputData, agencyName, ex
   ]
 
   if (structured) {
-    parts.push('', '--- PROVIDED DATA ---', structured)
+    parts.push('', '--- PROVIDED DATA (use every detail accurately) ---', structured)
   }
 
   if (extraNotes?.trim()) {
-    parts.push('', '--- ADDITIONAL NOTES ---', extraNotes.trim())
+    parts.push('', '--- ADDITIONAL NOTES (rewrite formally, keep all facts) ---', extraNotes.trim())
   }
 
   parts.push(
     '',
-    'IMPORTANT: Output only the final client-ready content. Do not add Program Overview, Accommodation, Travel Insurance, or Next Steps unless they appear in the template above. Use only provided information.',
+    'IMPORTANT:',
+    '- Output only the final client-ready content in fully formal business English.',
+    '- Do not add Program Overview, Accommodation, Travel Insurance, or Next Steps unless they appear in the template above.',
+    '- Use only provided information — never invent details.',
+    '- No markdown, no commentary, no subject line unless the template includes one.',
   )
 
   return parts.join('\n')

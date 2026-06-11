@@ -20,8 +20,9 @@ Return ONLY a JSON object with these exact keys (use empty string if unknown):
 Rules:
 - Use only information visible in the images.
 - Do not invent data.
-- Preserve currencies and flight numbers exactly.
-- If multiple images, merge outbound/return/fare info correctly.
+- Preserve currencies, flight numbers, times, dates, and prices exactly as shown — do not round or paraphrase.
+- Extract departure and arrival times, airport codes, durations, fare names, and all inclusions visible on screen.
+- If multiple images, merge outbound/return/fare info correctly without losing any detail.
 - Output raw JSON only, no markdown.`
 
 export function buildExtractFlightUserMessage(imageCount) {
