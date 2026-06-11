@@ -4,7 +4,7 @@ import { format, startOfMonth } from 'date-fns'
 import {
   Users, Target, FileText, CalendarCheck, CheckSquare, Wallet,
   ArrowRight, Plane, Mic, Plus, Receipt, ScrollText,
-  TrendingUp, Clock, MapPin, Sparkles, Loader2,
+  TrendingUp, Clock, MapPin, Sparkles,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -13,6 +13,7 @@ import { checkPaymentRemindersSlack } from '../services/slackNotify'
 import { formatCurrency, formatDate, getTodayISO } from '../utils/format'
 import { LEAD_STATUSES } from '../constants/enums'
 import RecentActivityFeed from '../components/dashboard/RecentActivityFeed'
+import AppLoadingScreen from '../components/loading/AppLoadingScreen'
 
 const PIPELINE_COLORS = {
   new: 'from-sky-400 to-sky-600',
@@ -123,7 +124,10 @@ export default function Dashboard() {
     checkPaymentRemindersSlack(session)
   }, [session])
 
+  const DASHBOARD_LOAD_MIN_MS = 4000
+
   async function loadDashboard() {
+    const loadStartedAt = Date.now()
     try {
       const today = getTodayISO()
       const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd')
@@ -282,6 +286,11 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Dashboard load error:', err)
     } finally {
+      const elapsed = Date.now() - loadStartedAt
+      const waitMs = Math.max(0, DASHBOARD_LOAD_MIN_MS - elapsed)
+      if (waitMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, waitMs))
+      }
       setLoading(false)
     }
   }
@@ -293,12 +302,17 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-          <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
-          <span className="text-sm font-medium text-slate-600">Loading your dashboard…</span>
-        </div>
-      </div>
+      <AppLoadingScreen
+        title="Launching dashboard"
+        steps={[
+          'Igniting engines',
+          'Fetching leads & bookings',
+          'Preparing your workspace',
+        ]}
+        variant="page"
+        theme="rocket"
+        durationMs={4000}
+      />
     )
   }
 

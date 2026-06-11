@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Plane } from 'lucide-react'
+import { ArrowRight, Building2, Loader2, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import Button from '../../components/ui/Button'
-import Input from '../../components/ui/Input'
-import Card from '../../components/ui/Card'
+import AuthAlert from '../../components/auth/AuthAlert'
+import AuthInput from '../../components/auth/AuthInput'
+import AuthLayout from '../../components/auth/AuthLayout'
 
 export default function Register() {
   const [email, setEmail] = useState('')
@@ -54,68 +54,89 @@ export default function Register() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-teal-600">
-            <Plane className="h-7 w-7 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">Create Account</h1>
-          <p className="mt-1 text-slate-500">Start managing your travel agency</p>
+    <AuthLayout
+      eyebrow="Get started"
+      title="Create your workspace"
+      subtitle="Set up your agency in minutes. Start with a trial and scale as you grow."
+      footer={
+        <>
+          Already have an account?{' '}
+          <Link
+            to="/login"
+            className="font-semibold text-teal-400 transition-colors hover:text-teal-300"
+          >
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <AuthAlert variant="error">{error}</AuthAlert>}
+        {success && <AuthAlert variant="success">{success}</AuthAlert>}
+
+        <AuthInput
+          label="Travel Agency Name"
+          type="text"
+          icon={Building2}
+          value={agencyName}
+          onChange={(e) => setAgencyName(e.target.value)}
+          required
+          placeholder="Mediterranean Voyages"
+          autoComplete="organization"
+        />
+
+        <AuthInput
+          label="Email"
+          type="email"
+          icon={Mail}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          placeholder="you@agency.com"
+          autoComplete="email"
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <AuthInput
+            label="Password"
+            type="password"
+            icon={Lock}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            placeholder="Min. 6 characters"
+            autoComplete="new-password"
+          />
+          <AuthInput
+            label="Confirm"
+            type="password"
+            icon={Lock}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            placeholder="Repeat password"
+            autoComplete="new-password"
+          />
         </div>
 
-        <Card>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
-            )}
-            {success && (
-              <div className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{success}</div>
-            )}
-            <Input
-              label="Travel Agency Name"
-              type="text"
-              value={agencyName}
-              onChange={(e) => setAgencyName(e.target.value)}
-              required
-              placeholder="Mediterranean Voyages"
-            />
-            <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@agency.com"
-            />
-            <Input
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-            />
-            <Input
-              label="Confirm Password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-            />
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Creating account...' : 'Create Account'}
-            </Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-slate-500">
-            Already have an account?{' '}
-            <Link to="/login" className="font-medium text-teal-600 hover:text-teal-700">
-              Sign In
-            </Link>
-          </p>
-        </Card>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="group relative mt-2 flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-900/40 transition-all duration-200 hover:from-teal-400 hover:to-teal-500 hover:shadow-teal-900/50 focus:outline-none focus:ring-2 focus:ring-teal-400/50 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Creating account...
+            </>
+          ) : (
+            <>
+              Create Account
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            </>
+          )}
+        </button>
+      </form>
+    </AuthLayout>
   )
 }

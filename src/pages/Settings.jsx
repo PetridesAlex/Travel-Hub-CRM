@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
 import { testSlackConnection } from '../services/slackNotify'
+import AgencyLogo from '../components/layout/AgencyLogo'
+import { resolveAgencyLogoUrl } from '../utils/resolveAgencyLogo'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
@@ -34,6 +36,7 @@ export default function Settings() {
   const { agency, updateAgencyProfile } = useAgency()
   const [currency, setCurrency] = useState(() => localStorage.getItem('default_currency') || 'EUR')
   const [agencyName, setAgencyName] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
   const [savingAgency, setSavingAgency] = useState(false)
   const [agencyMessage, setAgencyMessage] = useState('')
   const [copiedKey, setCopiedKey] = useState(false)
@@ -42,6 +45,10 @@ export default function Settings() {
   const [slackMessage, setSlackMessage] = useState('')
   const displayName = agency?.name || ''
   const nameValue = agencyName || displayName
+  const resolvedLogoUrl = resolveAgencyLogoUrl(agency)
+  const displayLogoUrl = agency?.logo_url || ''
+  const logoValue = logoUrl !== '' ? logoUrl : displayLogoUrl
+  const previewLogoUrl = logoValue || resolvedLogoUrl
 
   function handleCurrencyChange(value) {
     setCurrency(value)
@@ -55,8 +62,12 @@ export default function Settings() {
     setSavingAgency(true)
     setAgencyMessage('')
     try {
-      await updateAgencyProfile({ name: nameValue.trim() })
+      await updateAgencyProfile({
+        name: nameValue.trim(),
+        logo_url: logoValue.trim() || null,
+      })
       setAgencyName('')
+      setLogoUrl('')
       setAgencyMessage('Agency profile updated.')
     } catch (err) {
       setAgencyMessage(err.message || 'Failed to update agency profile.')
@@ -107,7 +118,7 @@ export default function Settings() {
           <div>
             <h3 className="font-semibold text-slate-900">Agency Profile</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Your agency name appears in the header across your dashboard.
+              Your agency name and logo appear in the sidebar and across your dashboard.
             </p>
           </div>
           <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${SUBSCRIPTION_COLORS[subscriptionStatus] || SUBSCRIPTION_COLORS.trial}`}>
@@ -116,12 +127,30 @@ export default function Settings() {
         </div>
 
         <form onSubmit={handleAgencySave} className="space-y-4">
+          <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+            <AgencyLogo name={nameValue} logoUrl={previewLogoUrl || undefined} size="lg" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-900">Sidebar preview</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Square logo works best. Use a public image URL or a path like{' '}
+                <code className="rounded bg-slate-200/80 px-1 py-0.5 text-[11px]">/logos/your-agency.png</code>
+              </p>
+            </div>
+          </div>
+
           <Input
             label="Agency Name"
             value={nameValue}
             onChange={(e) => setAgencyName(e.target.value)}
             placeholder="e.g. Mediterranean Voyages"
             required
+          />
+
+          <Input
+            label="Logo URL"
+            value={logoValue}
+            onChange={(e) => setLogoUrl(e.target.value)}
+            placeholder="/logos/honeywell-travel.png or https://..."
           />
 
           <div>

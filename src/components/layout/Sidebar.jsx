@@ -1,11 +1,13 @@
 import {
   LayoutDashboard, Users, Target, FileText, CalendarCheck,
   Building2, CheckSquare, Mail, Mic, Megaphone, Settings,
-  Plane, ScrollText, Receipt, Sparkles, Bot, FileStack, History,
+  ScrollText, Receipt, Sparkles, Bot, FileStack, History,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { NAV_ITEMS } from '../../constants/enums'
 import { useAgency } from '../../hooks/useAgency'
+import AgencyLogo from './AgencyLogo'
+import { resolveAgencyLogoUrl } from '../../utils/resolveAgencyLogo'
 
 const ICONS = {
   LayoutDashboard, Users, Target, FileText, CalendarCheck,
@@ -85,12 +87,7 @@ export default function Sidebar({ open, onClose }) {
 
         <div className="relative shrink-0 border-b border-white/[0.06] px-4 py-4 sm:px-5 sm:py-5">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-xl bg-teal-400/30 blur-md" />
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-teal-700 shadow-lg shadow-teal-900/40 ring-1 ring-white/10 sm:h-11 sm:w-11">
-                <Plane className="h-5 w-5 text-white" />
-              </div>
-            </div>
+            <AgencyLogo name={agencyName} logoUrl={resolveAgencyLogoUrl(agency)} />
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-sm font-semibold tracking-tight text-white">{agencyName}</h1>
               <div className="mt-1 flex items-center gap-1.5">
