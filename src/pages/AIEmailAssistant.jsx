@@ -198,6 +198,8 @@ export default function AIEmailAssistant() {
     transcript,
     isListening,
     isSupported: speechSupported,
+    canUseVoice,
+    isRequestingPermission,
     error: speechError,
     startListening,
     stopListening,
@@ -259,12 +261,12 @@ export default function AIEmailAssistant() {
     }
     if (emailType === 'flight_offer') {
       if (mode === 'write') return hasPrompt || hasFlight || hasNotes
-      if (mode === 'screenshot') return hasFlight || screenshots.length > 0
+      if (mode === 'screenshot') return hasFlight || screenshots.length > 0 || hasPrompt
       return hasPrompt || hasFlight || hasNotes || screenshots.length > 0
     }
 
     if (mode === 'write') return hasPrompt || hasNotes || hasPrice
-    if (mode === 'screenshot') return hasFlight || screenshots.length > 0
+    if (mode === 'screenshot') return hasFlight || screenshots.length > 0 || hasPrompt
     return hasPrompt || hasNotes || hasPrice || hasFlight || screenshots.length > 0
   }
 
@@ -655,16 +657,16 @@ export default function AIEmailAssistant() {
             )}
           </ComposerStep>
 
-          {(showPrompt || showFlightUpload) && (
-            <ComposerStep
-              number={3}
-              title="Build your brief"
-              subtitle={templateUi.briefHint}
-              accent={accent}
-            >
+          <ComposerStep
+            number={3}
+            title="Build your brief"
+            subtitle={showFlightUpload && !showPrompt
+              ? 'Upload screenshots and/or dictate instructions for the AI'
+              : templateUi.briefHint}
+            accent={accent}
+          >
             <div className="space-y-3">
-              {showPrompt && (
-                <div
+              <div
                   key={emailType}
                   className={`group/brief relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_rgba(15,23,42,0.04)] transition-all duration-300 ring-0 ${accentStyles.focus} focus-within:ring-2 focus-within:shadow-[0_1px_3px_rgba(15,23,42,0.08),0_12px_32px_rgba(15,23,42,0.06)]`}
                 >
@@ -695,22 +697,29 @@ export default function AIEmailAssistant() {
                             {briefCharCount} characters
                           </span>
                         )}
-                        {speechSupported && (
-                          <button
-                            type="button"
-                            onClick={isListening ? stopListening : handleStartVoice}
-                            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold shadow-sm transition-all ${
-                              isListening
-                                ? 'bg-red-500 text-white ring-2 ring-red-400/50 hover:bg-red-600'
-                                : `text-white ring-1 ring-white/20 hover:shadow-md ${accentStyles.uploadBtn}`
-                            }`}
-                          >
-                            <span className={`flex h-5 w-5 items-center justify-center rounded-full ${isListening ? 'bg-white/20' : 'bg-white/15'}`}>
-                              <Mic className={`h-3 w-3 ${isListening ? 'animate-pulse' : ''}`} />
-                            </span>
-                            {isListening ? 'Stop dictation' : 'Dictate brief'}
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={isListening ? stopListening : handleStartVoice}
+                          disabled={!canUseVoice || isRequestingPermission}
+                          className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                            isListening
+                              ? 'bg-red-500 text-white ring-2 ring-red-400/50 hover:bg-red-600'
+                              : `text-white ring-1 ring-white/20 hover:shadow-md ${accentStyles.uploadBtn}`
+                          }`}
+                        >
+                          <span className={`flex h-5 w-5 items-center justify-center rounded-full ${isListening ? 'bg-white/20' : 'bg-white/15'}`}>
+                            {isRequestingPermission
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <Mic className={`h-3 w-3 ${isListening ? 'animate-pulse' : ''}`} />}
+                          </span>
+                          {isRequestingPermission
+                            ? 'Enabling mic…'
+                            : isListening
+                              ? 'Stop dictation'
+                              : canUseVoice
+                                ? 'Dictate brief'
+                                : 'Voice unavailable'}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -744,16 +753,18 @@ export default function AIEmailAssistant() {
                     ) : (
                       <>
                         <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                          {briefCharCount > 0 ? 'Brief ready' : 'Awaiting input'}
+                          {briefCharCount > 0 ? 'Brief ready' : canUseVoice ? 'Type or dictate your instructions' : 'Type your instructions'}
                         </p>
                         {briefCharCount > 0 && (
                           <span className="text-[11px] tabular-nums text-slate-400 sm:hidden">{briefCharCount} chars</span>
+                        )}
+                        {!canUseVoice && (
+                          <span className="text-[11px] text-slate-400">Use Chrome, Edge, or Safari</span>
                         )}
                       </>
                     )}
                   </div>
                 </div>
-              )}
 
               {showFlightUpload && (
                 <div className={`relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 ${accentStyles.focus} focus-within:ring-2`}>
@@ -871,8 +882,7 @@ export default function AIEmailAssistant() {
                 <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{speechError}</p>
               )}
             </div>
-            </ComposerStep>
-          )}
+          </ComposerStep>
 
           {flightData && (
             <ComposerStep
@@ -981,7 +991,7 @@ export default function AIEmailAssistant() {
                       </>
                     )}
                   </button>
-                  {speechSupported && (
+                  {canUseVoice && (
                     <Button
                       variant="secondary"
                       size="lg"

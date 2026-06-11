@@ -72,6 +72,8 @@ export default function AIGenerator() {
     transcript,
     isListening,
     isSupported: speechSupported,
+    canUseVoice,
+    isRequestingPermission,
     error: speechError,
     startListening,
     stopListening,
@@ -762,20 +764,25 @@ export default function AIGenerator() {
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-between gap-3">
             <label className="block text-sm font-medium text-slate-700">Additional notes</label>
-            {speechSupported && (
-              <div className="flex items-center gap-2">
-                <VoiceInputButton
-                  size="sm"
-                  isListening={isListening}
-                  isSupported={speechSupported}
-                  onStart={handleStartVoice}
-                  onStop={stopListening}
-                />
-                <span className="text-xs text-slate-500">
-                  {isListening ? 'Listening…' : 'Voice'}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <VoiceInputButton
+                size="sm"
+                isListening={isListening}
+                isSupported={canUseVoice}
+                isRequestingPermission={isRequestingPermission}
+                onStart={handleStartVoice}
+                onStop={stopListening}
+              />
+              <span className="text-xs text-slate-500">
+                {isRequestingPermission
+                  ? 'Enabling mic…'
+                  : isListening
+                    ? 'Listening…'
+                    : canUseVoice
+                      ? 'Tap to dictate'
+                      : 'Use Chrome, Edge, or Safari'}
+              </span>
+            </div>
           </div>
           {selectedAgent?.category === 'email' && (
             <p className="mb-2 text-xs text-slate-500">

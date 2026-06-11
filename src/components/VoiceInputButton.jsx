@@ -1,12 +1,14 @@
-import { Mic, MicOff } from 'lucide-react'
+import { Mic, MicOff, Loader2 } from 'lucide-react'
 
 export default function VoiceInputButton({
   isListening,
   isSupported,
+  isRequestingPermission = false,
   onStart,
   onStop,
   size = 'lg',
   className = '',
+  disabled = false,
 }) {
   const sizes = {
     sm: 'h-10 w-10',
@@ -20,20 +22,35 @@ export default function VoiceInputButton({
     lg: 'h-8 w-8',
   }
 
-  if (!isSupported) return null
+  const isDisabled = disabled || !isSupported || isRequestingPermission
 
   return (
     <button
       type="button"
-      aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+      aria-label={
+        isRequestingPermission
+          ? 'Requesting microphone access'
+          : isListening
+            ? 'Stop listening'
+            : 'Start voice input'
+      }
+      disabled={isDisabled}
       onClick={isListening ? onStop : onStart}
-      className={`flex items-center justify-center rounded-full transition-colors ${
+      className={`flex items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
         isListening
           ? 'bg-red-500 text-white animate-pulse'
-          : 'bg-teal-600 text-white hover:bg-teal-700'
+          : isSupported
+            ? 'bg-teal-600 text-white hover:bg-teal-700'
+            : 'bg-slate-300 text-slate-500'
       } ${sizes[size]} ${className}`}
     >
-      {isListening ? <MicOff className={iconSizes[size]} /> : <Mic className={iconSizes[size]} />}
+      {isRequestingPermission ? (
+        <Loader2 className={`${iconSizes[size]} animate-spin`} />
+      ) : isListening ? (
+        <MicOff className={iconSizes[size]} />
+      ) : (
+        <Mic className={iconSizes[size]} />
+      )}
     </button>
   )
 }
