@@ -1,6 +1,38 @@
 import { verifySession } from '../../server/lib/verifySession.js'
 import { isOpenAiConfigured, createOpenAiResponse } from '../../server/lib/openaiService.js'
 import { AI_ASSIST_TASKS, buildAssistPrompt } from '../../server/lib/aiAssistPrompts.js'
+import { buildCalendarAssistPrompt } from '../../server/lib/calendarAssistPrompt.js'
+
+function isCalendarAssistRoute(req) {
+  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
+  return url.searchParams.get('route') === 'calendar-assist' || url.pathname.includes('calendar-assist')
+}
+
+async function handleCalendarAssist(req, res, auth) {
+  const body = req.body || {}
+  if (!body.message?.trim()) {
+    return res.status(400).json({ error: 'message is required.' })
+  }
+
+  let promptConfig
+  try {
+    promptConfig = buildCalendarAssistPrompt(body)
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+
+  const { text, raw } = await createOpenAiResponse({
+    instructions: promptConfig.instructions,
+    input: promptConfig.input,
+    temperature: promptConfig.temperature,
+  })
+
+  return res.status(200).json({
+    output: text,
+    task: 'calendar_assist',
+    model: raw?.model || undefined,
+  })
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,6 +46,14 @@ export default async function handler(req, res) {
   const auth = await verifySession(req)
   if (!auth.ok) {
     return res.status(auth.status).json({ error: auth.error })
+  }
+
+  if (isCalendarAssistRoute(req)) {
+    try {
+      return await handleCalendarAssist(req, res, auth)
+    } catch (err) {
+      return res.status(502).json({ error: err.message })
+    }
   }
 
   const body = req.body || {}

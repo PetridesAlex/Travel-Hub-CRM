@@ -41,26 +41,42 @@
     "api/leads/inbound.js": {
       "maxDuration": 15
     },
-    "api/admin/agencies.js": {
+    "api/admin.js": {
       "maxDuration": 30
     },
-    "api/admin/agency.js": {
-      "maxDuration": 30
-    },
-    "api/admin/invite.js": {
-      "maxDuration": 30
-    },
-    "api/agency/integrations.js": {
-      "maxDuration": 15
-    },
-    "api/agency/team.js": {
-      "maxDuration": 30
-    },
-    "api/email/send.js": {
+    "api/agency.js": {
       "maxDuration": 30
     }
   },
   "rewrites": [
+    {
+      "source": "/api/agency/team",
+      "destination": "/api/agency?route=team"
+    },
+    {
+      "source": "/api/agency/integrations",
+      "destination": "/api/agency?route=integrations"
+    },
+    {
+      "source": "/api/email/send",
+      "destination": "/api/agency?route=email"
+    },
+    {
+      "source": "/api/admin/agencies",
+      "destination": "/api/admin?route=agencies"
+    },
+    {
+      "source": "/api/admin/agency",
+      "destination": "/api/admin?route=agency"
+    },
+    {
+      "source": "/api/admin/invite",
+      "destination": "/api/admin?route=invite"
+    },
+    {
+      "source": "/api/ai/calendar-assist",
+      "destination": "/api/ai/assist?route=calendar-assist"
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
