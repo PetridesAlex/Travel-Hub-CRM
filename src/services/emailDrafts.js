@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resolveAgencyId } from './agencies'
 
 export async function getEmailDrafts() {
   const { data, error } = await supabase
@@ -9,10 +10,11 @@ export async function getEmailDrafts() {
   return data
 }
 
-export async function createEmailDraft(draft, userId) {
+export async function createEmailDraft(draft, userId, agencyId) {
+  const resolvedAgencyId = await resolveAgencyId(userId, agencyId)
   const { data, error } = await supabase
     .from('email_drafts')
-    .insert({ ...draft, user_id: userId, status: 'draft' })
+    .insert({ ...draft, user_id: userId, agency_id: resolvedAgencyId, status: 'draft' })
     .select()
     .single()
   if (error) throw error

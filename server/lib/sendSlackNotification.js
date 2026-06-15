@@ -1,9 +1,21 @@
+import { getSupabaseAdmin } from './supabaseAdmin.js'
+import { resolveSlackWebhookUrl } from './resolveSlackWebhook.js'
+
 /**
  * Send a plain-text message to Slack via incoming webhook.
- * Uses process.env.SLACK_WEBHOOK_URL only — never expose in frontend.
+ * Uses per-agency slack_webhook_url when set, else process.env.SLACK_WEBHOOK_URL.
  */
-export async function sendSlackNotification(message) {
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL
+export async function sendSlackNotification(message, options = {}) {
+  const { agencyId } = options
+
+  let webhookUrl = process.env.SLACK_WEBHOOK_URL || null
+
+  if (agencyId) {
+    const admin = getSupabaseAdmin()
+    if (admin.ok) {
+      webhookUrl = (await resolveSlackWebhookUrl(admin.supabase, agencyId)) || webhookUrl
+    }
+  }
 
   if (!webhookUrl) {
     return {

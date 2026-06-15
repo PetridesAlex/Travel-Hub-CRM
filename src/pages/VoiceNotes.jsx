@@ -181,7 +181,7 @@ export default function VoiceNotes() {
         transcript: transcript.trim(),
         generated_content: generatedProgram.trim() || null,
         linked_client_id: linkedClientId || null,
-      }, user.id)
+      }, user.id, agency?.id)
       handleReset()
       loadData()
     } catch (err) {

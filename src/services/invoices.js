@@ -1,4 +1,5 @@
 import { supabase, getCurrentUserId } from '../lib/supabase'
+import { resolveAgencyId } from './agencies'
 import { getClientsByIds } from './clients'
 
 const INVOICE_FIELDS = [
@@ -75,15 +76,16 @@ export async function getInvoice(id) {
   return enriched
 }
 
-export async function createInvoice(invoice, userId) {
+export async function createInvoice(invoice, userId, agencyId) {
   const uid = userId || (await getCurrentUserId())
   if (!uid) throw new Error('You must be signed in to save an invoice.')
 
+  const resolvedAgencyId = await resolveAgencyId(uid, agencyId)
   const payload = pickInvoicePayload(invoice)
 
   const { data, error } = await supabase
     .from('invoices')
-    .insert({ ...payload, user_id: uid })
+    .insert({ ...payload, user_id: uid, agency_id: resolvedAgencyId })
     .select('*')
     .single()
 

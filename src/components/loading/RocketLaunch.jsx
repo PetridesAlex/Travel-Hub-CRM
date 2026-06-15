@@ -2,7 +2,7 @@ import { Rocket } from 'lucide-react'
 
 export default function RocketLaunch() {
   return (
-    <div className="rocket-scene relative mx-auto mb-8 h-44 w-full max-w-[220px]">
+    <div className="rocket-scene relative mx-auto mb-8 h-72 w-full max-w-[320px]">
       <div className="rocket-stars" aria-hidden="true" />
       <div className="rocket-pad" aria-hidden="true" />
 
@@ -13,7 +13,7 @@ export default function RocketLaunch() {
           <span className="rocket-flame rocket-flame-3" />
         </div>
         <div className="rocket-body">
-          <Rocket className="h-9 w-9 text-white" strokeWidth={1.75} />
+          <Rocket className="h-16 w-16 text-white" strokeWidth={1.65} />
         </div>
       </div>
 

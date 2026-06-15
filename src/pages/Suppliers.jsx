@@ -4,6 +4,7 @@ import {
   Search, ArrowUpDown, ChevronDown, Loader2, Briefcase, Mail, Phone, User,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgency } from '../hooks/useAgency'
 import { getSuppliers, createSupplier, updateSupplier, deleteSupplier } from '../services/suppliers'
 import Button from '../components/ui/Button'
 import Table from '../components/ui/Table'
@@ -91,6 +92,7 @@ function sortSuppliers(list, sortBy) {
 
 export default function Suppliers() {
   const { user } = useAuth()
+  const { agency } = useAgency()
   const [allSuppliers, setAllSuppliers] = useState([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -146,7 +148,7 @@ export default function Suppliers() {
       if (editing) {
         await updateSupplier(editing.id, form)
       } else {
-        await createSupplier(form, user.id)
+        await createSupplier(form, user.id, agency?.id)
       }
       setModalOpen(false)
       loadSuppliers()

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, Pencil, Trash2, Search } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgency } from '../hooks/useAgency'
 import { getReceipts, createReceipt, updateReceipt, deleteReceipt } from '../services/receipts'
 import { getInvoices } from '../services/invoices'
 import { getClients } from '../services/clients'
@@ -34,6 +35,7 @@ function generateReceiptNumber() {
 
 export default function Receipts() {
   const { user } = useAuth()
+  const { agency } = useAgency()
   const [receipts, setReceipts] = useState([])
   const [invoices, setInvoices] = useState([])
   const [clients, setClients] = useState([])
@@ -164,7 +166,7 @@ export default function Receipts() {
       if (editing) {
         await updateReceipt(editing.id, payload)
       } else {
-        await createReceipt(payload, user.id)
+        await createReceipt(payload, user.id, agency?.id)
       }
       setModalOpen(false)
       await loadData()

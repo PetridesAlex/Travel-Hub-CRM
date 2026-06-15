@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resolveAgencyId } from './agencies'
 import { CLIENT_EMBED } from './clients'
 
 export async function getQuotations() {
@@ -20,10 +21,11 @@ export async function getQuotation(id) {
   return data
 }
 
-export async function createQuotation(quotation, userId) {
+export async function createQuotation(quotation, userId, agencyId) {
+  const resolvedAgencyId = await resolveAgencyId(userId, agencyId)
   const { data, error } = await supabase
     .from('quotations')
-    .insert({ ...quotation, user_id: userId })
+    .insert({ ...quotation, user_id: userId, agency_id: resolvedAgencyId })
     .select()
     .single()
   if (error) throw error

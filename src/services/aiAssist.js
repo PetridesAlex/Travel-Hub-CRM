@@ -72,3 +72,37 @@ export async function chatCompletion({ messages, instructions, temperature, imag
   const data = await callAiAssist('chat', { messages, instructions, temperature, images }, session)
   return data.output
 }
+
+export async function askCalendarAssistant(payload, session) {
+  if (!session?.access_token) {
+    throw new Error('You must be signed in to use the AI assistant.')
+  }
+
+  const res = await fetch('/api/ai/calendar-assist', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const raw = await res.text()
+  let data = {}
+  try {
+    data = raw ? JSON.parse(raw) : {}
+  } catch {
+    data = {}
+  }
+
+  if (!res.ok) {
+    if (res.status === 502 && !data.error) {
+      throw new Error(
+        'AI API unavailable (502). On local dev, run "npm run dev:api" in a second terminal.',
+      )
+    }
+    throw new Error(data.error || raw?.slice(0, 200) || `Calendar assistant failed (${res.status})`)
+  }
+
+  return data.output
+}

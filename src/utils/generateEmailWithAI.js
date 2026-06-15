@@ -1,6 +1,7 @@
 import { generateTravelEmail, isAiAvailable } from '../services/aiAssist'
 import { buildEmailSubject } from '../constants/emailAssistantPrompt'
 import { formatFlightDataForEmail } from './formatFlightEmail'
+import { formatClientSalutation, sanitizeEmailBody } from './professionalEmailHelpers'
 
 function formatPrice(price, currency) {
   if (!price) return ''
@@ -18,7 +19,10 @@ export async function generateEmailWithAI(source, session) {
     currency = 'EUR',
     destination = '',
     extraNotes = '',
+    agencyName = '',
   } = source
+
+  const salutationName = formatClientSalutation(clientName)
 
   const flightDetails = flightData
     ? formatFlightDataForEmail({
@@ -28,19 +32,20 @@ export async function generateEmailWithAI(source, session) {
       })
     : ''
 
-  const body = await generateTravelEmail(emailType, {
-    client_name: clientName,
+  const rawBody = await generateTravelEmail(emailType, {
+    client_name: salutationName,
     user_prompt: userPrompt,
     flight_details: flightDetails,
     price,
     currency,
     destination,
     extra_notes: extraNotes,
+    agency_name: agencyName,
   }, session)
 
   return {
-    subject: buildEmailSubject(emailType, { destination, clientName }),
-    body,
+    subject: buildEmailSubject(emailType, { destination, clientName: salutationName }),
+    body: sanitizeEmailBody(rawBody, userPrompt),
   }
 }
 

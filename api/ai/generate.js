@@ -3,6 +3,7 @@ import { buildOpenAiUserMessage } from '../../server/lib/buildAiPrompt.js'
 import { createOpenAiResponse } from '../../server/lib/openaiService.js'
 import { sendSlackNotification } from '../../server/lib/sendSlackNotification.js'
 import { buildSlackMessage } from '../../server/lib/slackMessages.js'
+import { resolveUserAgency } from '../../server/lib/resolveUserAgency.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -44,13 +45,10 @@ export default async function handler(req, res) {
 
   const userId = userData.user.id
 
-  const { data: agency, error: agencyError } = await supabase
-    .from('agencies')
-    .select('id, name')
-    .eq('owner_user_id', userId)
-    .single()
+  const resolved = await resolveUserAgency(supabase, userId)
+  const agency = resolved?.agency
 
-  if (agencyError || !agency) {
+  if (!agency) {
     return res.status(403).json({ error: 'Agency not found for this user.' })
   }
 
@@ -147,7 +145,7 @@ ADDITIONAL OUTPUT REQUIREMENTS (always apply):
     client_name: clientName,
   })
   if (slackMessage) {
-    await sendSlackNotification(slackMessage).catch(() => {})
+    await sendSlackNotification(slackMessage, { agencyId: agency.id }).catch(() => {})
   }
 
   return res.status(200).json({

@@ -63,3 +63,8 @@ export async function updateGeneration(id, updates) {
   if (error) throw error
   return data
 }
+
+export async function deleteGeneration(id) {
+  const { error } = await supabase.from('ai_generations').delete().eq('id', id)
+  if (error) throw error
+}

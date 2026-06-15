@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, Building2, Loader2, Lock, Mail } from 'lucide-react'
+import { Building2, Lock, Mail } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import AuthAlert from '../../components/auth/AuthAlert'
 import AuthInput from '../../components/auth/AuthInput'
 import AuthLayout from '../../components/auth/AuthLayout'
+import AuthSubmitButton from '../../components/auth/AuthSubmitButton'
 
 export default function Register() {
   const [email, setEmail] = useState('')
@@ -119,23 +120,9 @@ export default function Register() {
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="group relative mt-2 flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-teal-500 to-teal-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-900/40 transition-all duration-200 hover:from-teal-400 hover:to-teal-500 hover:shadow-teal-900/50 focus:outline-none focus:ring-2 focus:ring-teal-400/50 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Creating account...
-            </>
-          ) : (
-            <>
-              Create Account
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </>
-          )}
-        </button>
+        <AuthSubmitButton loading={loading} loadingLabel="Creating account...">
+          Create Account
+        </AuthSubmitButton>
       </form>
     </AuthLayout>
   )

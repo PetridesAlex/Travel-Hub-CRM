@@ -14,7 +14,7 @@ function extractMessageFromLeadNotes(notes = '') {
   return body.join('\n').trim() || null
 }
 
-async function findOrCreateClient(supabase, userId, clientFields) {
+async function findOrCreateClient(supabase, userId, agencyId, clientFields) {
   if (clientFields.email) {
     const { data: existing } = await supabase
       .from('clients')
@@ -59,6 +59,7 @@ async function findOrCreateClient(supabase, userId, clientFields) {
     .from('clients')
     .insert({
       user_id: userId,
+      agency_id: agencyId,
       full_name: clientFields.full_name,
       email: clientFields.email,
       phone: clientFields.phone,
@@ -93,6 +94,7 @@ export default async function handler(req, res) {
     const { client, created: clientCreated } = await findOrCreateClient(
       auth.supabase,
       auth.userId,
+      auth.agency.id,
       clientFields,
     )
 
@@ -101,6 +103,7 @@ export default async function handler(req, res) {
       .insert({
         ...leadFields,
         user_id: auth.userId,
+        agency_id: auth.agency.id,
         client_id: client.id,
         automation_processed: false,
       })
@@ -122,7 +125,7 @@ export default async function handler(req, res) {
     })
 
     if (slackMessage) {
-      await sendSlackNotification(slackMessage)
+      await sendSlackNotification(slackMessage, { agencyId: auth.agency.id })
     }
 
     return res.status(201).json({

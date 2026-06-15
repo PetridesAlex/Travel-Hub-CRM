@@ -5,6 +5,7 @@ import {
   Search, ArrowUpDown, Globe, ChevronDown, X,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgency } from '../hooks/useAgency'
 import { getClients, createClient, updateClient, deleteClient } from '../services/clients'
 import Button from '../components/ui/Button'
 import Table from '../components/ui/Table'
@@ -121,6 +122,7 @@ function FilterField({ label, icon: Icon, children }) {
 
 export default function Clients() {
   const { user, session } = useAuth()
+  const { agency } = useAgency()
   const navigate = useNavigate()
   const [allClients, setAllClients] = useState([])
   const [search, setSearch] = useState('')
@@ -195,7 +197,7 @@ export default function Clients() {
       if (editing) {
         await updateClient(editing.id, payload)
       } else {
-        const created = await createClient(payload, user.id)
+        const created = await createClient(payload, user.id, agency?.id)
         notifySlack(session, 'client_created', {
           full_name: formatClientName(created),
           email: created.email || '—',

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgency } from '../hooks/useAgency'
 import { getMarketingCampaigns, createMarketingCampaign, updateMarketingCampaign, deleteMarketingCampaign } from '../services/marketingCampaigns'
 import Button from '../components/ui/Button'
 import Table from '../components/ui/Table'
@@ -23,6 +24,7 @@ const emptyForm = {
 
 export default function MarketingCampaigns() {
   const { user } = useAuth()
+  const { agency } = useAgency()
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -70,7 +72,7 @@ export default function MarketingCampaigns() {
       if (editing) {
         await updateMarketingCampaign(editing.id, form)
       } else {
-        await createMarketingCampaign(form, user.id)
+        await createMarketingCampaign(form, user.id, agency?.id)
       }
       setModalOpen(false)
       loadCampaigns()

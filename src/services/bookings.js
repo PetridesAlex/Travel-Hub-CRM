@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resolveAgencyId } from './agencies'
 import { CLIENT_EMBED } from './clients'
 
 export async function getBookings() {
@@ -20,10 +21,11 @@ export async function getBooking(id) {
   return data
 }
 
-export async function createBooking(booking, userId) {
+export async function createBooking(booking, userId, agencyId) {
+  const resolvedAgencyId = await resolveAgencyId(userId, agencyId)
   const { data, error } = await supabase
     .from('bookings')
-    .insert({ ...booking, user_id: userId })
+    .insert({ ...booking, user_id: userId, agency_id: resolvedAgencyId })
     .select()
     .single()
   if (error) throw error

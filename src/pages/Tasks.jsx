@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { differenceInDays, parseISO } from 'date-fns'
 import { useAuth } from '../hooks/useAuth'
+import { useAgency } from '../hooks/useAgency'
 import { getTasks, createTask, updateTask, deleteTask } from '../services/tasks'
 import { getClients } from '../services/clients'
 import { getLeads } from '../services/leads'
@@ -97,6 +98,7 @@ function sortTasks(list, sortBy) {
 
 export default function Tasks() {
   const { user } = useAuth()
+  const { agency } = useAgency()
   const [allTasks, setAllTasks] = useState([])
   const [clients, setClients] = useState([])
   const [leads, setLeads] = useState([])
@@ -168,7 +170,7 @@ export default function Tasks() {
       if (editing) {
         await updateTask(editing.id, payload)
       } else {
-        await createTask(payload, user.id)
+        await createTask(payload, user.id, agency?.id)
       }
       setModalOpen(false)
       loadData()

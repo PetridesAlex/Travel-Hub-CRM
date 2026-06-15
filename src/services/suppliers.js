@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resolveAgencyId } from './agencies'
 
 export async function getSuppliers(search = '', type = '') {
   let query = supabase.from('suppliers').select('*').order('company_name')
@@ -13,10 +14,11 @@ export async function getSuppliers(search = '', type = '') {
   return data
 }
 
-export async function createSupplier(supplier, userId) {
+export async function createSupplier(supplier, userId, agencyId) {
+  const resolvedAgencyId = await resolveAgencyId(userId, agencyId)
   const { data, error } = await supabase
     .from('suppliers')
-    .insert({ ...supplier, user_id: userId })
+    .insert({ ...supplier, user_id: userId, agency_id: resolvedAgencyId })
     .select()
     .single()
   if (error) throw error

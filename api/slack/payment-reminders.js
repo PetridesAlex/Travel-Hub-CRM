@@ -1,6 +1,7 @@
 import { sendSlackNotification } from '../../server/lib/sendSlackNotification.js'
 import { buildSlackMessage } from '../../server/lib/slackMessages.js'
 import { verifySession } from '../../server/lib/verifySession.js'
+import { resolveUserAgency } from '../../server/lib/resolveUserAgency.js'
 
 /** Bookings with balance due within the next 7 days (or overdue by 1 day) */
 export default async function handler(req, res) {
@@ -42,6 +43,9 @@ export default async function handler(req, res) {
   let sent = 0
   const errors = []
 
+  const resolved = await resolveUserAgency(auth.supabase, auth.user.id)
+  const agencyId = resolved?.agency?.id
+
   for (const booking of bookings) {
     const client = booking.clients
     const clientName = client?.client_type === 'business' && client?.company_name
@@ -56,7 +60,7 @@ export default async function handler(req, res) {
       currency: booking.currency || 'EUR',
     })
 
-    const result = await sendSlackNotification(message)
+    const result = await sendSlackNotification(message, { agencyId })
     if (result.ok) {
       sent += 1
     } else {

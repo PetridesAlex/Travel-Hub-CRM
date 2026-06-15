@@ -1,4 +1,9 @@
+import { PROFESSIONAL_EMAIL_EXAMPLE } from './professionalEmailExample.js'
+import { buildCalendarAssistPrompt } from './calendarAssistPrompt.js'
+
 const EMAIL_SYSTEM_PROMPT = `You are a senior travel consultant at an established professional travel agency. You write polished, fully formal business correspondence suitable for corporate clients and discerning travellers.
+
+You always follow the professional travel agency email template structure. You never paste the agent's raw voice notes or instructions into any section of the email.
 
 TONE AND STYLE:
 - Fully formal and professional at all times — courteous, confident, and authoritative.
@@ -63,6 +68,7 @@ export const AI_ASSIST_TASKS = new Set([
   'rewrite_message',
   'crm_assist',
   'chat',
+  'calendar_assist',
 ])
 
 const EMAIL_TASKS = new Set([
@@ -142,6 +148,9 @@ Write in formal business English. If information is missing, state what is neede
         temperature: payload.temperature ?? 0.25,
       }
 
+    case 'calendar_assist':
+      return buildCalendarAssistPrompt(payload)
+
     default:
       throw new Error(`Unsupported AI task: ${task}`)
   }
@@ -167,6 +176,7 @@ function buildTravelEmailPrompt(emailType, payload) {
     currency = 'EUR',
     destination = '',
     extra_notes: extraNotes = '',
+    agency_name: agencyName = '',
   } = payload
 
   const guidance = TEMPLATE_GUIDANCE[emailType] || TEMPLATE_GUIDANCE.travel_email
@@ -179,6 +189,7 @@ function buildTravelEmailPrompt(emailType, payload) {
     `Client name: ${clientName}`,
     guidance,
     `Opening line: ${greeting}`,
+    agencyName ? `Agency sign-off name: ${agencyName}` : '',
     destination ? `Destination / route: ${destination}` : '',
     price ? `Price: ${formatPrice(price, currency)}` : '',
     hasFlightData ? `Extracted screenshot / booking data (copy flight times, routes, dates, prices exactly — ignore garbled text):\n${flightDetails}` : '',
@@ -212,12 +223,16 @@ function buildTravelEmailPrompt(emailType, payload) {
     instructions: EMAIL_SYSTEM_PROMPT,
     input: [
       `Replace [Client Name] with: ${clientName}`,
+      agencyName ? `End with: Kind Regards,\\n${agencyName}` : '',
+      '',
+      PROFESSIONAL_EMAIL_EXAMPLE,
       '',
       'Information to use:',
       context,
       '',
       ...criticalRules,
+      'Write the complete email now using the CORRECT EXAMPLE style. Flight Details must contain only travel facts — never agent instructions.',
     ].join('\n'),
-    temperature: 0.25,
+    temperature: 0.2,
   }
 }

@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import generateHandler from '../api/ai/generate.js'
+import assistHandler from '../api/ai/assist.js'
+import calendarAssistHandler from '../api/ai/calendar-assist.js'
 import voiceProgramHandler from '../api/ai/voice-program.js'
 import extractFlightHandler from '../api/ai/extract-flight-fields.js'
 import extractTemplateFieldsHandler from '../api/ai/extract-template-fields.js'
@@ -11,9 +13,18 @@ import slackTestHandler from '../api/slack/test.js'
 import slackNotifyHandler from '../api/slack/notify.js'
 import slackPaymentRemindersHandler from '../api/slack/payment-reminders.js'
 import leadsInboundHandler from '../api/leads/inbound.js'
+import adminAgenciesHandler from '../api/admin/agencies.js'
+import adminAgencyHandler from '../api/admin/agency.js'
+import adminInviteHandler from '../api/admin/invite.js'
+import agencyIntegrationsHandler from '../api/agency/integrations.js'
+import agencyTeamHandler from '../api/agency/team.js'
+import emailSendHandler from '../api/email/send.js'
+
 
 const apiRoutes = {
   '/api/ai/generate': generateHandler,
+  '/api/ai/assist': assistHandler,
+  '/api/ai/calendar-assist': calendarAssistHandler,
   '/api/ai/voice-program': voiceProgramHandler,
   '/api/ai/extract-flight-fields': extractFlightHandler,
   '/api/ai/extract-template-fields': extractTemplateFieldsHandler,
@@ -22,6 +33,12 @@ const apiRoutes = {
   '/api/slack/notify': slackNotifyHandler,
   '/api/slack/payment-reminders': slackPaymentRemindersHandler,
   '/api/leads/inbound': leadsInboundHandler,
+  '/api/admin/agencies': adminAgenciesHandler,
+  '/api/admin/agency': adminAgencyHandler,
+  '/api/admin/invite': adminInviteHandler,
+  '/api/agency/integrations': agencyIntegrationsHandler,
+  '/api/agency/team': agencyTeamHandler,
+  '/api/email/send': emailSendHandler,
 }
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -84,7 +101,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const body = req.method === 'POST' ? await readJsonBody(req) : {}
     await handler(
-      { method: req.method, headers: req.headers, body },
+      { method: req.method, headers: req.headers, body, url: req.url },
       createVercelResponse(res),
     )
   } catch (err) {

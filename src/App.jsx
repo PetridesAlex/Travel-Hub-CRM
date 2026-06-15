@@ -15,6 +15,7 @@ import Invoices from './pages/Invoices'
 import Receipts from './pages/Receipts'
 import Suppliers from './pages/Suppliers'
 import Tasks from './pages/Tasks'
+import Calendar from './pages/Calendar'
 import AIEmailAssistant from './pages/AIEmailAssistant'
 import VoiceNotes from './pages/VoiceNotes'
 import MarketingCampaigns from './pages/MarketingCampaigns'
@@ -24,6 +25,11 @@ import AITemplates from './pages/ai-workspace/AITemplates'
 import AIGenerator from './pages/ai-workspace/AIGenerator'
 import AIHistory from './pages/ai-workspace/AIHistory'
 import SetupBanner from './components/SetupBanner'
+import SuperAdminRoute from './components/admin/SuperAdminRoute'
+import SuperAdminLayout from './components/admin/SuperAdminLayout'
+import AdminAgencies from './pages/admin/AdminAgencies'
+import AdminAgencyNew from './pages/admin/AdminAgencyNew'
+import AdminAgencyEdit from './pages/admin/AdminAgencyEdit'
 
 export default function App() {
   return (
@@ -52,6 +58,7 @@ export default function App() {
             <Route path="/receipts" element={<Receipts />} />
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/tasks" element={<Tasks />} />
+            <Route path="/calendar" element={<Calendar />} />
             <Route path="/ai-workspace/agents" element={<AIAgents />} />
             <Route path="/ai-workspace/templates" element={<AITemplates />} />
             <Route path="/ai-workspace/generator" element={<AIGenerator />} />
@@ -60,6 +67,18 @@ export default function App() {
             <Route path="/voice-notes" element={<VoiceNotes />} />
             <Route path="/marketing" element={<MarketingCampaigns />} />
             <Route path="/settings" element={<Settings />} />
+          </Route>
+
+          <Route
+            element={
+              <SuperAdminRoute>
+                <SuperAdminLayout />
+              </SuperAdminRoute>
+            }
+          >
+            <Route path="/admin/agencies" element={<AdminAgencies />} />
+            <Route path="/admin/agencies/new" element={<AdminAgencyNew />} />
+            <Route path="/admin/agencies/:id" element={<AdminAgencyEdit />} />
           </Route>
 
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

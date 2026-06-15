@@ -5,6 +5,7 @@ import {
   User, Mail, MapPin, Tag, Wallet, Flag, Calendar, MoreHorizontal,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgency } from '../hooks/useAgency'
 import { getLeads, createLead, updateLead, deleteLead } from '../services/leads'
 import { getClients } from '../services/clients'
 import { createTask } from '../services/tasks'
@@ -78,6 +79,7 @@ function FilterField({ label, children }) {
 
 export default function Leads() {
   const { user, session } = useAuth()
+  const { agency } = useAgency()
   const [searchParams] = useSearchParams()
   const [allLeads, setAllLeads] = useState([])
   const [clients, setClients] = useState([])
@@ -154,7 +156,7 @@ export default function Leads() {
       if (editing) {
         await updateLead(editing.id, payload)
       } else {
-        const lead = await createLead(payload, user.id)
+        const lead = await createLead(payload, user.id, agency?.id)
         const linkedClient = clients.find((c) => c.id === payload.client_id)
         notifySlack(session, 'lead_created', {
           client_name: linkedClient ? formatClientName(linkedClient) : '—',
@@ -173,7 +175,7 @@ export default function Leads() {
             title: `Follow up: ${payload.destination || 'Lead'}`,
             due_date: payload.follow_up_date,
             status: 'pending',
-          }, user.id)
+          }, user.id, agency?.id)
         }
       }
       setModalOpen(false)

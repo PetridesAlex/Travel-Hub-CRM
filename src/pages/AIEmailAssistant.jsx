@@ -5,6 +5,7 @@ import {
   Plane, Ship, Building2, Send, CreditCard, User, Check, ChevronRight, FileText, Lock,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgency } from '../hooks/useAgency'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { getClients } from '../services/clients'
 import { createEmailDraft } from '../services/emailDrafts'
@@ -169,6 +170,7 @@ function ReadinessChip({ label, ready, accent = 'teal' }) {
 
 export default function AIEmailAssistant() {
   const { user, session } = useAuth()
+  const { agency } = useAgency()
   const fileInputRef = useRef(null)
   const emailEditorRef = useRef(null)
   const [mode, setMode] = useState('both')
@@ -238,6 +240,7 @@ export default function AIEmailAssistant() {
       currency,
       destination: flightData ? buildRouteLabel(flightData) : '',
       extraNotes,
+      agencyName: agency?.name || '',
     }
   }
 
@@ -456,7 +459,7 @@ export default function AIEmailAssistant() {
         email_type: emailType,
         subject: editSubject,
         body: editBody,
-      }, user.id)
+      }, user.id, agency?.id)
       alert('Email draft saved!')
     } catch (err) {
       alert(err.message)
@@ -1070,7 +1073,13 @@ export default function AIEmailAssistant() {
                 <p className="mt-2 text-sm text-red-600">{generateError}</p>
               )}
               <p className="mt-2 text-xs text-slate-400">
-                Describe your change and it will be applied to the email above. Examples: &quot;Add payment is due in 7 days&quot;, &quot;Make it shorter&quot;, &quot;Remove inbound section&quot;, &quot;Change price to €320&quot;.
+                Describe your change and it will be applied to the email above. Examples: &quot;Rewrite more formally&quot;, &quot;Add passport copies required&quot;, &quot;Include Ryanair flight times from screenshot&quot;.
+              </p>
+              <p className="mt-2 text-xs text-slate-500">
+                Tip: Your voice brief is guidance only — it should never appear in the email. For reusable layouts, use{' '}
+                <Link to="/ai-workspace/templates" className="font-medium text-teal-700 underline">AI Templates</Link>
+                {' '}with the{' '}
+                <Link to="/ai-workspace/generator" className="font-medium text-teal-700 underline">AI Generator</Link>.
               </p>
             </div>
           </div>

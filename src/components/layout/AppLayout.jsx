@@ -15,7 +15,7 @@ export default function AppLayout() {
   return (
     <div className="flex min-h-screen overflow-x-clip bg-slate-50">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:ml-64">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:ml-[17.5rem]">
         <Header
           title={title}
           pageIcon={currentPage?.icon}

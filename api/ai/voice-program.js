@@ -5,6 +5,7 @@ import {
   buildVoiceProgramInstructions,
   buildVoiceProgramUserMessage,
 } from '../../server/lib/voiceProgramPrompt.js'
+import { resolveUserAgency } from '../../server/lib/resolveUserAgency.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -53,13 +54,10 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Invalid or expired session.' })
   }
 
-  const { data: agency, error: agencyError } = await supabase
-    .from('agencies')
-    .select('id, name')
-    .eq('owner_user_id', userData.user.id)
-    .single()
+  const resolved = await resolveUserAgency(supabase, userData.user.id)
+  const agency = resolved?.agency
 
-  if (agencyError || !agency) {
+  if (!agency) {
     return res.status(403).json({ error: 'Agency not found for this user.' })
   }
 

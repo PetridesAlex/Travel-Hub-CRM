@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resolveAgencyId } from './agencies'
 import { CLIENT_EMBED } from './clients'
 
 export async function getReceipts(search = '', paymentMethod = '') {
@@ -32,10 +33,11 @@ export async function getReceipt(id) {
   return data
 }
 
-export async function createReceipt(receipt, userId) {
+export async function createReceipt(receipt, userId, agencyId) {
+  const resolvedAgencyId = await resolveAgencyId(userId, agencyId)
   const { data, error } = await supabase
     .from('receipts')
-    .insert({ ...receipt, user_id: userId })
+    .insert({ ...receipt, user_id: userId, agency_id: resolvedAgencyId })
     .select()
     .single()
   if (error) throw error

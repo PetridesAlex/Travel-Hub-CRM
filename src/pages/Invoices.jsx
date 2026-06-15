@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, Pencil, Trash2, Search } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgency } from '../hooks/useAgency'
 import { getInvoices, createInvoice, updateInvoice, deleteInvoice } from '../services/invoices'
 import { getClients } from '../services/clients'
 import { getBookings } from '../services/bookings'
@@ -51,6 +52,7 @@ function generateInvoiceNumber() {
 
 export default function Invoices() {
   const { user } = useAuth()
+  const { agency } = useAgency()
   const [invoices, setInvoices] = useState([])
   const [clients, setClients] = useState([])
   const [bookings, setBookings] = useState([])
@@ -282,7 +284,7 @@ export default function Invoices() {
 
       const saved = editing
         ? await updateInvoice(editing.id, payload)
-        : await createInvoice(payload, user.id)
+        : await createInvoice(payload, user.id, agency?.id)
 
       setSearch('')
       setStatusFilter('')

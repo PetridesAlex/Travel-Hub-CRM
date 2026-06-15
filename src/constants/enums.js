@@ -133,6 +133,7 @@ export const NAV_ITEMS = [
   { path: '/receipts', label: 'Receipts', icon: 'Receipt' },
   { path: '/suppliers', label: 'Suppliers', icon: 'Building2' },
   { path: '/tasks', label: 'Tasks', icon: 'CheckSquare' },
+  { path: '/calendar', label: 'Calendar', icon: 'Calendar' },
   { path: '/ai-workspace/generator', label: 'AI Generator', icon: 'Sparkles' },
   { path: '/ai-workspace/agents', label: 'AI Agents', icon: 'Bot' },
   { path: '/ai-workspace/templates', label: 'AI Templates', icon: 'FileStack' },

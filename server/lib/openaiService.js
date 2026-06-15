@@ -2,6 +2,14 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
 
 export const DEFAULT_OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5.5'
 
+/** Reasoning / GPT-5.x models reject custom temperature on the Responses API. */
+export function modelSupportsTemperature(model = DEFAULT_OPENAI_MODEL) {
+  const m = String(model).toLowerCase()
+  if (/^o[134](-|$)/.test(m)) return false
+  if (/^gpt-5/.test(m)) return false
+  return true
+}
+
 export function getOpenAiApiKey() {
   const key = process.env.OPENAI_API_KEY?.trim()
   if (!key) {
@@ -70,7 +78,7 @@ export async function createOpenAiResponse({
         model,
         ...(instructions ? { instructions } : {}),
         input,
-        temperature,
+        ...(modelSupportsTemperature(model) ? { temperature } : {}),
       }),
     })
   } catch (err) {

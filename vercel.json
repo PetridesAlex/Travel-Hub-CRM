@@ -3,23 +3,67 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Permissions-Policy", "value": "microphone=(self)" }
+        {
+          "key": "Permissions-Policy",
+          "value": "microphone=(self)"
+        }
       ]
     }
   ],
   "functions": {
-    "api/ai/assist.js": { "maxDuration": 60 },
-    "api/ai/voice-program.js": { "maxDuration": 60 },
-    "api/ai/generate.js": { "maxDuration": 60 },
-    "api/ai/extract-flight-fields.js": { "maxDuration": 60 },
-    "api/ai/extract-template-fields.js": { "maxDuration": 60 },
-    "api/ai/compare-hotel-rates.js": { "maxDuration": 60 },
-    "api/slack/test.js": { "maxDuration": 15 },
-    "api/slack/notify.js": { "maxDuration": 15 },
-    "api/slack/payment-reminders.js": { "maxDuration": 30 },
-    "api/leads/inbound.js": { "maxDuration": 15 }
+    "api/ai/assist.js": {
+      "maxDuration": 60
+    },
+    "api/ai/voice-program.js": {
+      "maxDuration": 60
+    },
+    "api/ai/generate.js": {
+      "maxDuration": 60
+    },
+    "api/ai/extract-flight-fields.js": {
+      "maxDuration": 60
+    },
+    "api/ai/extract-template-fields.js": {
+      "maxDuration": 60
+    },
+    "api/ai/compare-hotel-rates.js": {
+      "maxDuration": 60
+    },
+    "api/slack/test.js": {
+      "maxDuration": 15
+    },
+    "api/slack/notify.js": {
+      "maxDuration": 15
+    },
+    "api/slack/payment-reminders.js": {
+      "maxDuration": 30
+    },
+    "api/leads/inbound.js": {
+      "maxDuration": 15
+    },
+    "api/admin/agencies.js": {
+      "maxDuration": 30
+    },
+    "api/admin/agency.js": {
+      "maxDuration": 30
+    },
+    "api/admin/invite.js": {
+      "maxDuration": 30
+    },
+    "api/agency/integrations.js": {
+      "maxDuration": 15
+    },
+    "api/agency/team.js": {
+      "maxDuration": 30
+    },
+    "api/email/send.js": {
+      "maxDuration": 30
+    }
   },
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ]
 }

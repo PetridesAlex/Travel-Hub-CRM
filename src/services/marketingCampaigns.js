@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resolveAgencyId } from './agencies'
 
 export async function getMarketingCampaigns() {
   const { data, error } = await supabase
@@ -9,10 +10,11 @@ export async function getMarketingCampaigns() {
   return data
 }
 
-export async function createMarketingCampaign(campaign, userId) {
+export async function createMarketingCampaign(campaign, userId, agencyId) {
+  const resolvedAgencyId = await resolveAgencyId(userId, agencyId)
   const { data, error } = await supabase
     .from('marketing_campaigns')
-    .insert({ ...campaign, user_id: userId })
+    .insert({ ...campaign, user_id: userId, agency_id: resolvedAgencyId })
     .select()
     .single()
   if (error) throw error

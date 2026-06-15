@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { History, Copy, Check, Eye, Loader2 } from 'lucide-react'
-import { getGenerations } from '../../services/aiGenerations'
+import { Link } from 'react-router-dom'
+import { History, Loader2, Search, Sparkles, Filter, AlertTriangle, Copy, Check, Trash2 } from 'lucide-react'
+import { getGenerations, deleteGeneration } from '../../services/aiGenerations'
 import { getAgents } from '../../services/aiAgents'
 import { getClients } from '../../services/clients'
 import Select from '../../components/ui/Select'
 import Modal from '../../components/ui/Modal'
 import Button from '../../components/ui/Button'
+import AIHistoryHero from '../../components/ai-workspace/AIHistoryHero'
+import AIHistoryCard from '../../components/ai-workspace/AIHistoryCard'
 import { AI_TEMPLATE_CATEGORIES } from '../../constants/aiTemplateFields'
 import { formatClientName, formatDateTime, labelFor } from '../../utils/format'
 
@@ -16,9 +19,13 @@ export default function AIHistory() {
   const [agentFilter, setAgentFilter] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [clientFilter, setClientFilter] = useState('')
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [viewing, setViewing] = useState(null)
-  const [copied, setCopied] = useState(false)
+  const [copiedId, setCopiedId] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     loadFilters()
@@ -50,91 +57,197 @@ export default function AIHistory() {
     }
   }
 
-  const filtered = useMemo(() => generations, [generations])
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return generations
+    return generations.filter((gen) => {
+      const haystack = [
+        gen.ai_templates?.name,
+        gen.ai_agents?.name,
+        labelFor(AI_TEMPLATE_CATEGORIES, gen.generation_type),
+        gen.generated_output,
+        gen.clients ? formatClientName(gen.clients) : '',
+      ].filter(Boolean).join(' ').toLowerCase()
+      return haystack.includes(q)
+    })
+  }, [generations, search])
 
-  async function handleCopy(text) {
+  async function handleCopy(text, id) {
     await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  async function handleConfirmDelete() {
+    if (!confirmDelete) return
+    setDeleteError('')
+    setDeletingId(confirmDelete.id)
+    try {
+      await deleteGeneration(confirmDelete.id)
+      setGenerations((prev) => prev.filter((g) => g.id !== confirmDelete.id))
+      if (viewing?.id === confirmDelete.id) setViewing(null)
+      setConfirmDelete(null)
+    } catch (err) {
+      setDeleteError(err.message || 'Could not delete generation.')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const agentOptions = [{ value: '', label: 'All agents' }, ...agents.map((a) => ({ value: a.id, label: a.name }))]
   const categoryOptions = [{ value: '', label: 'All categories' }, ...AI_TEMPLATE_CATEGORIES]
   const clientOptions = [{ value: '', label: 'All clients' }, ...clients.map((c) => ({ value: c.id, label: formatClientName(c) }))]
+  const hasActiveFilters = Boolean(agentFilter || categoryFilter || clientFilter || search.trim())
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-white">
-          <History className="h-5 w-5" />
-        </span>
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">AI History</h2>
-          <p className="text-sm text-slate-500">Previous AI generations saved automatically</p>
-        </div>
-      </div>
+    <div className="mx-auto max-w-[90rem] space-y-5">
+      <AIHistoryHero total={generations.length} />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Select label="Agent" value={agentFilter} onChange={(e) => setAgentFilter(e.target.value)} options={agentOptions} />
-        <Select label="Category" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} options={categoryOptions} />
-        <Select label="Client" value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} options={clientOptions} />
+      <div className="ai-history-filters rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm backdrop-blur-sm sm:p-5">
+        <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <Filter className="h-3.5 w-3.5" />
+          Filter archive
+        </div>
+        <div className="grid gap-3 lg:grid-cols-[1.2fr_repeat(3,1fr)]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-slate-400" />
+            <label className="mb-1 block text-sm font-medium text-slate-700">Search</label>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search output, template, agent…"
+              className="ai-history-search w-full"
+            />
+          </div>
+          <Select label="Agent" value={agentFilter} onChange={(e) => setAgentFilter(e.target.value)} options={agentOptions} />
+          <Select label="Category" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} options={categoryOptions} />
+          <Select label="Client" value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} options={clientOptions} />
+        </div>
+        {hasActiveFilters && (
+          <p className="mt-3 text-xs text-slate-500">
+            Showing {filtered.length} of {generations.length} generations
+          </p>
+        )}
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-teal-600" /></div>
+        <div className="flex flex-col items-center justify-center gap-3 py-20">
+          <Loader2 className="h-7 w-7 animate-spin text-indigo-500" />
+          <p className="text-sm text-slate-500">Loading your generation archive…</p>
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-12 text-center text-sm text-slate-500">
-          No generations yet. Use the AI Generator to create content.
+        <div className="ai-history-empty rounded-2xl border border-dashed border-slate-200 bg-gradient-to-b from-slate-50 to-white px-6 py-16 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-500 ring-1 ring-indigo-100">
+            <History className="h-7 w-7" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-900">
+            {hasActiveFilters ? 'No matches found' : 'No generations yet'}
+          </h3>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
+            {hasActiveFilters
+              ? 'Try adjusting your filters or search term.'
+              : 'Use the AI Generator to create emails, quotes, and proposals — they appear here automatically.'}
+          </p>
+          {!hasActiveFilters && (
+            <Link
+              to="/ai-workspace/generator"
+              className="ai-history-cta mt-6 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white"
+            >
+              <Sparkles className="h-4 w-4" />
+              Open AI Generator
+            </Link>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map((gen) => (
-            <div
+            <AIHistoryCard
               key={gen.id}
-              className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-slate-900">{gen.ai_templates?.name || 'Generation'}</p>
-                  <p className="text-xs text-slate-500">
-                    {gen.ai_agents?.name} · {labelFor(AI_TEMPLATE_CATEGORIES, gen.generation_type)} · {formatDateTime(gen.created_at)}
-                  </p>
-                  {gen.clients && (
-                    <span className="mt-2 inline-block rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-800">
-                      {formatClientName(gen.clients)}
-                    </span>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => setViewing(gen)}>
-                    <Eye className="h-4 w-4" /> View
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleCopy(gen.generated_output || '')}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <pre className="mt-3 max-h-24 overflow-hidden whitespace-pre-wrap text-sm text-slate-600">
-                {(gen.generated_output || '').slice(0, 300)}{(gen.generated_output || '').length > 300 ? '…' : ''}
-              </pre>
-            </div>
+              generation={gen}
+              clientLabel={gen.clients ? formatClientName(gen.clients) : ''}
+              dateLabel={formatDateTime(gen.created_at)}
+              onView={setViewing}
+              onCopy={(text) => handleCopy(text, gen.id)}
+              onDelete={setConfirmDelete}
+              deleting={deletingId === gen.id}
+              copied={copiedId === gen.id}
+            />
           ))}
         </div>
       )}
 
-      <Modal isOpen={!!viewing} onClose={() => setViewing(null)} title={viewing?.ai_templates?.name || 'Generation'}>
-        <div className="space-y-3">
-          <p className="text-xs text-slate-500">{formatDateTime(viewing?.created_at)}</p>
+      <Modal
+        isOpen={!!viewing}
+        onClose={() => setViewing(null)}
+        title={viewing?.ai_templates?.name || 'Generation'}
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+            <span>{viewing?.ai_agents?.name}</span>
+            <span>·</span>
+            <span>{labelFor(AI_TEMPLATE_CATEGORIES, viewing?.generation_type)}</span>
+            <span>·</span>
+            <span>{formatDateTime(viewing?.created_at)}</span>
+          </div>
           <textarea
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 font-mono text-sm leading-relaxed"
+            className="ai-history-modal-output w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm leading-relaxed text-slate-800"
             rows={16}
             readOnly
             value={viewing?.generated_output || ''}
           />
-          <Button onClick={() => handleCopy(viewing?.generated_output || '')}>
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            {copied ? 'Copied' : 'Copy to clipboard'}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => handleCopy(viewing?.generated_output || '', viewing?.id)}>
+              {copiedId === viewing?.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copiedId === viewing?.id ? 'Copied' : 'Copy to clipboard'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConfirmDelete(viewing)
+                setViewing(null)
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={!!confirmDelete}
+        onClose={() => !deletingId && setConfirmDelete(null)}
+        title="Delete generation?"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-4">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div>
+              <p className="text-sm font-medium text-slate-900">
+                Remove &ldquo;{confirmDelete?.ai_templates?.name || 'this generation'}&rdquo;?
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                This cannot be undone. The saved output will be permanently deleted from your archive.
+              </p>
+            </div>
+          </div>
+          {deleteError && (
+            <p className="text-sm text-red-600">{deleteError}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setConfirmDelete(null)} disabled={!!deletingId}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              disabled={!!deletingId}
+              className="!bg-red-600 hover:!bg-red-700"
+            >
+              {deletingId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {deletingId ? 'Deleting…' : 'Delete permanently'}
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

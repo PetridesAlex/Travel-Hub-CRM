@@ -1,6 +1,7 @@
 import { sendSlackNotification } from '../../server/lib/sendSlackNotification.js'
 import { buildSlackMessage, SLACK_NOTIFY_TYPES } from '../../server/lib/slackMessages.js'
 import { verifySession } from '../../server/lib/verifySession.js'
+import { resolveUserAgency } from '../../server/lib/resolveUserAgency.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -24,7 +25,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Could not build Slack message.' })
   }
 
-  const result = await sendSlackNotification(message)
+  const resolved = await resolveUserAgency(auth.supabase, auth.user.id)
+  const result = await sendSlackNotification(message, { agencyId: resolved?.agency?.id })
 
   if (!result.ok) {
     return res.status(500).json({ error: result.error })

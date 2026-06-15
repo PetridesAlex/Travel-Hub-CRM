@@ -4,6 +4,7 @@ import {
   Plane, Search, ArrowUpDown, ChevronDown, Loader2, CheckCircle2,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgency } from '../hooks/useAgency'
 import { getBookings, createBooking, updateBooking, deleteBooking } from '../services/bookings'
 import { getClients } from '../services/clients'
 import { getQuotations } from '../services/quotations'
@@ -127,6 +128,7 @@ function sortBookings(list, sortBy) {
 
 export default function Bookings() {
   const { user } = useAuth()
+  const { agency } = useAgency()
   const [bookings, setBookings] = useState([])
   const [clients, setClients] = useState([])
   const [quotations, setQuotations] = useState([])
@@ -213,7 +215,7 @@ export default function Bookings() {
       if (editing) {
         await updateBooking(editing.id, payload)
       } else {
-        await createBooking(payload, user.id)
+        await createBooking(payload, user.id, agency?.id)
       }
       setModalOpen(false)
       loadData()

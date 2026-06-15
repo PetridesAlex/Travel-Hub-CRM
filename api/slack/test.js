@@ -1,5 +1,6 @@
 import { sendSlackNotification } from '../../server/lib/sendSlackNotification.js'
 import { verifySession } from '../../server/lib/verifySession.js'
+import { resolveUserAgency } from '../../server/lib/resolveUserAgency.js'
 
 const TEST_MESSAGE = `🚀 Travel Hub CRM Connected Successfully
 
@@ -16,7 +17,8 @@ export default async function handler(req, res) {
     return res.status(auth.status).json({ error: auth.error })
   }
 
-  const result = await sendSlackNotification(TEST_MESSAGE)
+  const resolved = await resolveUserAgency(auth.supabase, auth.user.id)
+  const result = await sendSlackNotification(TEST_MESSAGE, { agencyId: resolved?.agency?.id })
 
   if (!result.ok) {
     return res.status(500).json({ error: result.error })

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Plus, Pencil, Trash2, Eye } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAgency } from '../hooks/useAgency'
 import { getQuotations, createQuotation, updateQuotation, deleteQuotation } from '../services/quotations'
 import { getClients } from '../services/clients'
 import { getLeads } from '../services/leads'
@@ -33,6 +34,7 @@ const emptyForm = {
 
 export default function Quotations() {
   const { user, session } = useAuth()
+  const { agency } = useAgency()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [quotations, setQuotations] = useState([])
@@ -112,7 +114,7 @@ export default function Quotations() {
       if (editing) {
         await updateQuotation(editing.id, payload)
       } else {
-        const quote = await createQuotation(payload, user.id)
+        const quote = await createQuotation(payload, user.id, agency?.id)
         const linkedClient = clients.find((c) => c.id === payload.client_id)
         notifySlack(session, 'quotation_created', {
           client_name: linkedClient ? formatClientName(linkedClient) : '—',
@@ -149,7 +151,7 @@ export default function Quotations() {
         total_cost: quote.selling_price,
         amount_paid: 0,
         status: 'pending',
-      }, user.id)
+      }, user.id, agency?.id)
       alert('Booking created from quotation!')
       navigate('/bookings')
     } catch (err) {

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resolveAgencyId } from './agencies'
 import { CLIENT_EMBED } from './clients'
 
 export async function getTasks(filter = 'all') {
@@ -21,10 +22,11 @@ export async function getTasks(filter = 'all') {
   return data
 }
 
-export async function createTask(task, userId) {
+export async function createTask(task, userId, agencyId) {
+  const resolvedAgencyId = await resolveAgencyId(userId, agencyId)
   const { data, error } = await supabase
     .from('tasks')
-    .insert({ ...task, user_id: userId })
+    .insert({ ...task, user_id: userId, agency_id: resolvedAgencyId })
     .select()
     .single()
   if (error) throw error

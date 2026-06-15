@@ -7,11 +7,13 @@ const AgencyContext = createContext(null)
 export function AgencyProvider({ children }) {
   const { user } = useAuth()
   const [agency, setAgency] = useState(null)
+  const [memberRole, setMemberRole] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const loadAgency = useCallback(async () => {
     if (!user?.id) {
       setAgency(null)
+      setMemberRole(null)
       setLoading(false)
       return
     }
@@ -21,9 +23,11 @@ export function AgencyProvider({ children }) {
       const defaultName = user.user_metadata?.agency_name || 'My Travel Agency'
       const data = await getOrCreateAgency(user.id, defaultName)
       setAgency(data)
+      setMemberRole(data?.member_role || 'owner')
     } catch (err) {
       console.error('Failed to load agency:', err)
       setAgency(null)
+      setMemberRole(null)
     } finally {
       setLoading(false)
     }
@@ -35,13 +39,14 @@ export function AgencyProvider({ children }) {
 
   async function updateAgencyProfile(updates) {
     if (!user?.id || !agency) return null
-    const updated = await updateAgency(user.id, agency.id, updates)
+    const updated = await updateAgency(user.id, agency.id, updates, memberRole)
     setAgency(updated)
+    setMemberRole(updated?.member_role || memberRole)
     return updated
   }
 
   return (
-    <AgencyContext.Provider value={{ agency, loading, updateAgencyProfile, reloadAgency: loadAgency }}>
+    <AgencyContext.Provider value={{ agency, memberRole, loading, updateAgencyProfile, reloadAgency: loadAgency }}>
       {children}
     </AgencyContext.Provider>
   )

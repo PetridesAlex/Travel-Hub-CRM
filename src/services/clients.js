@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resolveAgencyId } from './agencies'
 
 /** Safe client embed for joined queries — uses * so missing optional columns don't break */
 export const CLIENT_EMBED = '*'
@@ -36,10 +37,11 @@ export async function getClient(id) {
   return data
 }
 
-export async function createClient(client, userId) {
+export async function createClient(client, userId, agencyId) {
+  const resolvedAgencyId = await resolveAgencyId(userId, agencyId)
   const { data, error } = await supabase
     .from('clients')
-    .insert({ ...client, user_id: userId })
+    .insert({ ...client, user_id: userId, agency_id: resolvedAgencyId })
     .select()
     .single()
   if (error) throw error

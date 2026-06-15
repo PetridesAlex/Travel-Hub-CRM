@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { resolveAgencyId } from './agencies'
 import { CLIENT_EMBED } from './clients'
 
 export async function getVoiceNotes() {
@@ -10,12 +11,14 @@ export async function getVoiceNotes() {
   return data
 }
 
-export async function createVoiceNote(note, userId) {
+export async function createVoiceNote(note, userId, agencyId) {
+  const resolvedAgencyId = await resolveAgencyId(userId, agencyId)
   const { data, error } = await supabase
     .from('voice_notes')
     .insert({
       ...note,
       user_id: userId,
+      agency_id: resolvedAgencyId,
       processing_status: note.generated_content ? 'completed' : 'pending',
     })
     .select()
