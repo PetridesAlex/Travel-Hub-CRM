@@ -4,6 +4,7 @@ import {
   Check,
   Copy,
   CreditCard,
+  ExternalLink,
   FileText,
   Loader2,
   MessageSquare,
@@ -24,6 +25,7 @@ import { saveAgencyResendKey } from '../services/agencyIntegrations'
 import { sendEmailViaResend } from '../services/emailSend'
 import { inviteTeamMember, listTeamMembers, removeTeamMember } from '../services/agencyTeam'
 import { canManageAgencySettings } from '../services/agencies'
+import { getOutlookPrefs, openOutlookCompose, openOutlookInbox, OUTLOOK_PROVIDERS, saveOutlookPrefs } from '../utils/outlookCompose'
 import AgencyLogo from '../components/layout/AgencyLogo'
 import { resolveAgencyLogoUrl } from '../utils/resolveAgencyLogo'
 import Button from '../components/ui/Button'
@@ -152,6 +154,8 @@ export default function Settings() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('agent')
   const [inviting, setInviting] = useState(false)
+  const [outlookProvider, setOutlookProvider] = useState(() => getOutlookPrefs().provider)
+  const [outlookEmail, setOutlookEmail] = useState(() => getOutlookPrefs().email || user?.email || '')
 
   const subscriptionStatus = agency?.subscription_status || 'trial'
   const resolvedLogoUrl = resolveAgencyLogoUrl(agency)
@@ -173,6 +177,24 @@ export default function Settings() {
   function handleCurrencyChange(value) {
     setCurrency(value)
     localStorage.setItem('default_currency', value)
+  }
+
+  function handleOutlookProviderChange(value) {
+    setOutlookProvider(value)
+    saveOutlookPrefs({ provider: value, email: outlookEmail })
+  }
+
+  function handleOutlookEmailChange(value) {
+    setOutlookEmail(value)
+    saveOutlookPrefs({ provider: outlookProvider, email: value })
+  }
+
+  function handleOpenOutlookInbox() {
+    openOutlookInbox(outlookProvider)
+  }
+
+  function handleOpenOutlookCompose() {
+    openOutlookCompose({ provider: outlookProvider })
   }
 
   async function loadTeam() {
@@ -483,7 +505,43 @@ export default function Settings() {
               </Card>
 
               <Card className="border-slate-200/80 p-6 shadow-sm sm:p-8">
-                <SectionHeader title="Resend email" description="Transactional email for quotes, reminders, and client communication." />
+                <SectionHeader
+                  title="Microsoft Outlook"
+                  description="Open your Outlook inbox or compose emails from the CRM using your Microsoft account."
+                />
+                <div className="space-y-5">
+                  <Select
+                    label="Outlook account type"
+                    value={outlookProvider}
+                    onChange={(e) => handleOutlookProviderChange(e.target.value)}
+                    options={Object.entries(OUTLOOK_PROVIDERS).map(([value, config]) => ({
+                      value,
+                      label: config.label,
+                    }))}
+                  />
+                  <Input
+                    label="Your Outlook email"
+                    type="email"
+                    value={outlookEmail}
+                    onChange={(e) => handleOutlookEmailChange(e.target.value)}
+                    placeholder="you@honeywelltravel.com"
+                  />
+                  <p className="text-sm leading-relaxed text-slate-500">
+                    Use <strong className="font-medium text-slate-700">Open in Outlook</strong> in the AI Email Assistant to pre-fill the client, subject, and body in Outlook Web. You send from your own mailbox — no extra API setup required.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <Button type="button" variant="secondary" onClick={handleOpenOutlookInbox}>
+                      <ExternalLink className="h-4 w-4" /> Open Outlook inbox
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={handleOpenOutlookCompose}>
+                      <ExternalLink className="h-4 w-4" /> New email in Outlook
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="border-slate-200/80 p-6 shadow-sm sm:p-8">
+                <SectionHeader title="Resend email" description="Automated API email for test sends and future transactional delivery (optional)." />
                 <div className="space-y-5">
                   <Input label="Domain" value={field('resend_domain')} onChange={(e) => setField('resend_domain', e.target.value)} disabled={!canManage} />
                   <Input label="From address" value={field('resend_from_email')} onChange={(e) => setField('resend_from_email', e.target.value)} placeholder="hello@mail.youragency.com" disabled={!canManage} />

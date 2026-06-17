@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Copy, Save, Upload, Loader2, RotateCcw, RefreshCw, ImageIcon, PenLine, X, Sparkles, Mic,
-  Plane, Ship, Building2, Send, CreditCard, User, Check, ChevronRight, FileText, Lock,
+  Plane, Ship, Building2, Send, CreditCard, User, Check, ChevronRight, FileText, Lock, ExternalLink,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
@@ -21,6 +21,7 @@ import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import { EMAIL_TEMPLATES } from '../constants/emailAssistantPrompt'
 import { canUseAiEmail } from '../utils/generateEmailWithAI'
+import { getOutlookPrefs, openOutlookCompose } from '../utils/outlookCompose'
 
 const MODES = [
   { id: 'write', label: 'Write', icon: PenLine },
@@ -473,6 +474,17 @@ export default function AIEmailAssistant() {
     await navigator.clipboard.writeText(`Subject: ${editSubject}\n\n${editBody}`)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  function handleOpenOutlook() {
+    if (!editSubject && !editBody) return
+    const client = clients.find((c) => c.id === clientId)
+    openOutlookCompose({
+      to: client?.email || '',
+      subject: editSubject,
+      body: editBody,
+      provider: getOutlookPrefs().provider,
+    })
   }
 
   const clientOptions = [{ value: '', label: 'Select from clients...' }, ...clients.map((c) => ({ value: c.id, label: formatClientOptionLabel(c) }))]
@@ -1029,12 +1041,21 @@ export default function AIEmailAssistant() {
         <Card ref={emailEditorRef}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-sm font-medium text-teal-700">Edit your email — change anything, then copy or regenerate</p>
+              <p className="text-sm font-medium text-teal-700">Edit your email — change anything, then copy, open in Outlook, or regenerate</p>
               <h3 className="font-semibold text-slate-900">Email Editor</h3>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="secondary" size="sm" onClick={handleCopy}>
                 <Copy className="h-4 w-4" /> {copied ? 'Copied!' : 'Copy'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleOpenOutlook}
+                disabled={!editSubject && !editBody}
+                title="Opens Outlook Web with this email pre-filled"
+              >
+                <ExternalLink className="h-4 w-4" /> Open in Outlook
               </Button>
               <Button size="sm" onClick={handleSave} disabled={saving}>
                 <Save className="h-4 w-4" /> {saving ? 'Saving...' : 'Save Draft'}
