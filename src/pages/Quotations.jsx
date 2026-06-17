@@ -46,12 +46,12 @@ const CURRENCIES = [
 
 function FormSection({ title, description, children }) {
   return (
-    <section className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 sm:p-5">
-      <div className="mb-4">
+    <section className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3.5 sm:rounded-2xl sm:p-5">
+      <div className="mb-3 sm:mb-4">
         <h3 className="text-sm font-bold text-slate-900">{title}</h3>
         {description && <p className="mt-1 text-xs leading-relaxed text-slate-500">{description}</p>}
       </div>
-      <div className="space-y-4">{children}</div>
+      <div className="space-y-3 sm:space-y-4">{children}</div>
     </section>
   )
 }
@@ -397,7 +397,7 @@ export default function Quotations() {
         onClose={() => setModalOpen(false)}
         size="xl"
         title={editing ? 'Edit quotation' : 'New quotation'}
-        subtitle={editing ? 'Update pricing, inclusions, and status' : 'Search for a client, link a lead, and build a professional quote'}
+        subtitle={editing ? 'Update pricing, inclusions, and status' : 'Search for a client and build a professional quote'}
         footer={
           <ModalFooter
             onCancel={() => setModalOpen(false)}
@@ -407,7 +407,7 @@ export default function Quotations() {
           />
         }
       >
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-5">
           <FormSection title="Client & lead" description="Search by name, email, phone, or company — works with large client lists.">
             <div className="grid gap-4 sm:grid-cols-2">
               <SearchableSelect
@@ -466,7 +466,7 @@ export default function Quotations() {
               <Select label="Currency" value={form.currency} onChange={(e) => setField('currency', e.target.value)} options={CURRENCIES} />
               <Select label="Status" value={form.status} onChange={(e) => setField('status', e.target.value)} options={QUOTATION_STATUSES} />
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Est. profit</p>
                 <p className="mt-1 text-xl font-bold tabular-nums text-emerald-900">{formatCurrency(estimatedProfit, form.currency)}</p>
@@ -511,7 +511,7 @@ export default function Quotations() {
             <>
               <Button variant="secondary" onClick={() => setPreviewOpen(false)}>Close</Button>
               <Button variant="secondary" onClick={() => handleExportPdf(previewQuote)}>
-                <Download className="h-4 w-4" /> Export PDF
+                <Download className="h-4 w-4" /> PDF
               </Button>
               <Button onClick={() => { setPreviewOpen(false); openEdit(previewQuote) }}>Edit quote</Button>
             </>
