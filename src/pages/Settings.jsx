@@ -36,7 +36,7 @@ import Select from '../components/ui/Select'
 const TABS = [
   { id: 'company', label: 'Company', icon: Building2, description: 'Profile & branding' },
   { id: 'documents', label: 'Documents', icon: FileText, description: 'Invoices & emails' },
-  { id: 'integrations', label: 'Integrations', icon: Plug, description: 'Slack, Resend & API' },
+  { id: 'integrations', label: 'Integrations', icon: Plug, description: 'Outlook, Slack, Resend & API' },
   { id: 'team', label: 'Team', icon: Users, description: 'Employees & access' },
   { id: 'subscription', label: 'Subscription', icon: CreditCard, description: 'Plan & billing' },
   { id: 'account', label: 'Account', icon: UserCircle, description: 'Sign-in & preferences' },
