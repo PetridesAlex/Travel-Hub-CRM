@@ -24,7 +24,7 @@ export default function LeadTableHeader({ icon: Icon, label, accent = 'slate' })
       <div className="min-w-0">
         <div className="flex items-center gap-1">
           <span className={`hidden h-1 w-1 shrink-0 rounded-full sm:inline ${theme.dot}`} aria-hidden />
-          <span className={`truncate text-[9px] font-bold uppercase tracking-[0.14em] sm:text-[10px] sm:tracking-[0.18em] ${theme.text}`}>
+          <span className={`truncate text-[10px] font-bold uppercase tracking-[0.16em] sm:tracking-[0.18em] ${theme.text}`}>
             {label}
           </span>
         </div>

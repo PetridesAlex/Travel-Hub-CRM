@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import {
   Plus, Pencil, Trash2, Eye, Download, CalendarCheck, FileText,
-  Search, Sparkles, MapPin, TrendingUp, Loader2,
+  Search, Sparkles, MapPin, TrendingUp, Loader2, User, Wallet, Flag, MoreHorizontal,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
@@ -23,6 +23,7 @@ import { QUOTATION_STATUSES } from '../constants/enums'
 import { formatCurrency, formatClientName, formatClientOptionLabel, labelFor } from '../utils/format'
 import { notifySlack } from '../services/slackNotify'
 import { buildQuotationDraftFromLead, exportQuotationPdf } from '../utils/exportPdf'
+import LeadTableHeader, { PREMIUM_HEADER_CLASS, PREMIUM_CELL_CLASS } from '../components/leads/LeadTableHeader'
 
 const emptyForm = {
   client_id: '',
@@ -262,32 +263,64 @@ export default function Quotations() {
     {
       key: 'title',
       label: 'Quote',
+      headerClassName: PREMIUM_HEADER_CLASS,
+      headerRender: () => <LeadTableHeader icon={FileText} label="Quote" accent="gradient" />,
+      cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => (
-        <div className="min-w-[10rem]">
-          <p className="font-semibold text-slate-900">{row.title}</p>
+        <div className="min-w-[9rem]">
+          <p className="font-semibold tracking-tight text-slate-900">{row.title}</p>
           {row.destination && (
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
-              <MapPin className="h-3 w-3 shrink-0" />{row.destination}
+            <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+              <MapPin className="h-3 w-3 shrink-0 text-teal-600" />{row.destination}
             </p>
           )}
         </div>
       ),
     },
-    { key: 'client', label: 'Client', render: (row) => <span className="font-medium text-slate-800">{formatClientName(row.clients)}</span> },
+    {
+      key: 'client',
+      label: 'Client',
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden sm:table-cell`,
+      headerRender: () => <LeadTableHeader icon={User} label="Client" accent="teal" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden sm:table-cell`,
+      render: (row) => <span className="font-medium text-slate-800">{formatClientName(row.clients)}</span>,
+    },
     {
       key: 'selling_price',
       label: 'Price',
-      render: (row) => <span className="font-semibold tabular-nums text-slate-900">{formatCurrency(row.selling_price, row.currency)}</span>,
+      headerClassName: PREMIUM_HEADER_CLASS,
+      headerRender: () => <LeadTableHeader icon={Wallet} label="Price" accent="violet" />,
+      cellClassName: PREMIUM_CELL_CLASS,
+      render: (row) => (
+        <span className="text-base font-bold tabular-nums tracking-tight text-slate-900 sm:text-sm">
+          {formatCurrency(row.selling_price, row.currency)}
+        </span>
+      ),
     },
     {
       key: 'profit',
       label: 'Profit',
-      render: (row) => <span className="font-medium tabular-nums text-emerald-700">{formatCurrency(row.profit, row.currency)}</span>,
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden md:table-cell`,
+      headerRender: () => <LeadTableHeader icon={TrendingUp} label="Profit" accent="emerald" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden md:table-cell`,
+      render: (row) => (
+        <span className="font-semibold tabular-nums text-emerald-700">{formatCurrency(row.profit, row.currency)}</span>
+      ),
     },
-    { key: 'status', label: 'Status', render: (row) => <Badge status={row.status} label={labelFor(QUOTATION_STATUSES, row.status)} /> },
+    {
+      key: 'status',
+      label: 'Status',
+      headerClassName: PREMIUM_HEADER_CLASS,
+      headerRender: () => <LeadTableHeader icon={Flag} label="Status" accent="amber" />,
+      cellClassName: PREMIUM_CELL_CLASS,
+      render: (row) => <Badge status={row.status} label={labelFor(QUOTATION_STATUSES, row.status)} />,
+    },
     {
       key: 'actions',
       label: 'Actions',
+      headerClassName: `${PREMIUM_HEADER_CLASS} w-[1%] whitespace-nowrap`,
+      headerRender: () => <LeadTableHeader icon={MoreHorizontal} label="Actions" accent="slate" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} w-[1%] whitespace-nowrap`,
       render: (row) => (
         <div className="flex flex-wrap items-center gap-1">
           <button type="button" onClick={() => { setPreviewQuote(row); setPreviewOpen(true) }} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-teal-600" title="Preview">
@@ -385,6 +418,8 @@ export default function Quotations() {
       ) : (
         <Table
           variant="premium"
+          caption="All quotations"
+          captionCount={`${filteredQuotations.length} shown`}
           columns={columns}
           data={filteredQuotations}
           emptyMessage={tableSearch || statusFilter ? 'No quotations match your filters.' : 'No quotations yet. Create your first quote for a client.'}
