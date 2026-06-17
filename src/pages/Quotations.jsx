@@ -75,6 +75,7 @@ export default function Quotations() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [exportingId, setExportingId] = useState(null)
   const [tableSearch, setTableSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
@@ -222,9 +223,16 @@ export default function Quotations() {
     }
   }
 
-  function handleExportPdf(quote) {
-    const client = quote.clients || clients.find((c) => c.id === quote.client_id)
-    exportQuotationPdf(quote, { agency, client })
+  async function handleExportPdf(quote) {
+    setExportingId(quote.id)
+    try {
+      const client = quote.clients || clients.find((c) => c.id === quote.client_id)
+      await exportQuotationPdf(quote, { agency, client })
+    } catch (err) {
+      alert(err.message || 'Failed to generate PDF')
+    } finally {
+      setExportingId(null)
+    }
   }
 
   const stats = useMemo(() => {
@@ -326,8 +334,8 @@ export default function Quotations() {
           <button type="button" onClick={() => { setPreviewQuote(row); setPreviewOpen(true) }} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-teal-600" title="Preview">
             <Eye className="h-4 w-4" />
           </button>
-          <button type="button" onClick={() => handleExportPdf(row)} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-teal-600" title="Download PDF">
-            <Download className="h-4 w-4" />
+          <button type="button" onClick={() => handleExportPdf(row)} disabled={exportingId === row.id} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-teal-600 disabled:opacity-50" title="Download PDF">
+            {exportingId === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           </button>
           <button type="button" onClick={() => openEdit(row)} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-teal-600" title="Edit">
             <Pencil className="h-4 w-4" />
@@ -545,8 +553,8 @@ export default function Quotations() {
           previewQuote && (
             <>
               <Button variant="secondary" onClick={() => setPreviewOpen(false)}>Close</Button>
-              <Button variant="secondary" onClick={() => handleExportPdf(previewQuote)}>
-                <Download className="h-4 w-4" /> PDF
+              <Button variant="secondary" onClick={() => handleExportPdf(previewQuote)} disabled={exportingId === previewQuote?.id}>
+                {exportingId === previewQuote?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
               </Button>
               <Button onClick={() => { setPreviewOpen(false); openEdit(previewQuote) }}>Edit quote</Button>
             </>

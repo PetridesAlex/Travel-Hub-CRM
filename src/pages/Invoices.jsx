@@ -324,7 +324,9 @@ export default function Invoices() {
 
   function handleExportPdf(invoice) {
     const client = invoice.clients || clients.find((c) => c.id === invoice.client_id)
-    exportInvoicePdf(invoice, { agency, client })
+    exportInvoicePdf(invoice, { agency, client }).catch((err) => {
+      alert(err.message || 'Failed to generate PDF')
+    })
   }
 
   const sortedClients = useMemo(
