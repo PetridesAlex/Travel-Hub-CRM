@@ -112,6 +112,18 @@ export default async function handler(req, res) {
 
     if (leadError) throw new Error(leadError.message)
 
+    const followUpDue = new Date()
+    followUpDue.setDate(followUpDue.getDate() + 1)
+    await auth.supabase.from('tasks').insert({
+      user_id: auth.userId,
+      agency_id: auth.agency.id,
+      client_id: client.id,
+      lead_id: lead.id,
+      title: `Follow up: ${lead.destination || 'New website enquiry'}`,
+      due_date: followUpDue.toISOString().slice(0, 10),
+      status: 'pending',
+    })
+
     const slackMessage = buildSlackMessage('lead_created', {
       client_name: client.full_name,
       email: client.email,

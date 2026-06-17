@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Eye } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, Download, CalendarCheck } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
 import { getQuotations, createQuotation, updateQuotation, deleteQuotation } from '../services/quotations'
 import { getClients } from '../services/clients'
-import { getLeads } from '../services/leads'
+import { getLeads, getLead, updateLead } from '../services/leads'
 import { createBooking } from '../services/bookings'
 import Button from '../components/ui/Button'
 import Table from '../components/ui/Table'
@@ -13,10 +13,10 @@ import Modal, { ModalFooter } from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Badge from '../components/ui/Badge'
-import Card from '../components/ui/Card'
 import { QUOTATION_STATUSES } from '../constants/enums'
 import { formatCurrency, formatClientName, formatClientOptionLabel, labelFor } from '../utils/format'
 import { notifySlack } from '../services/slackNotify'
+import { buildQuotationDraftFromLead, exportQuotationPdf } from '../utils/exportPdf'
 
 const emptyForm = {
   client_id: '',
@@ -54,9 +54,16 @@ export default function Quotations() {
 
   useEffect(() => {
     const clientId = searchParams.get('client')
+    const leadId = searchParams.get('lead')
     if (clientId) {
       setForm((f) => ({ ...f, client_id: clientId }))
       setModalOpen(true)
+    }
+    if (leadId) {
+      getLead(leadId).then((lead) => {
+        setForm(buildQuotationDraftFromLead(lead))
+        setModalOpen(true)
+      }).catch((err) => console.error(err))
     }
   }, [searchParams])
 
@@ -115,6 +122,9 @@ export default function Quotations() {
         await updateQuotation(editing.id, payload)
       } else {
         const quote = await createQuotation(payload, user.id, agency?.id)
+        if (payload.lead_id) {
+          await updateLead(payload.lead_id, { status: 'quoted' })
+        }
         const linkedClient = clients.find((c) => c.id === payload.client_id)
         notifySlack(session, 'quotation_created', {
           client_name: linkedClient ? formatClientName(linkedClient) : '—',
@@ -152,11 +162,22 @@ export default function Quotations() {
         amount_paid: 0,
         status: 'pending',
       }, user.id, agency?.id)
+      if (quote.lead_id) {
+        await updateLead(quote.lead_id, { status: 'confirmed' })
+      }
+      if (quote.status !== 'accepted') {
+        await updateQuotation(quote.id, { status: 'accepted' })
+      }
       alert('Booking created from quotation!')
       navigate('/bookings')
     } catch (err) {
       alert(err.message)
     }
+  }
+
+  function handleExportPdf(quote) {
+    const client = quote.clients || clients.find((c) => c.id === quote.client_id)
+    exportQuotationPdf(quote, { agency, client })
   }
 
   const clientOptions = [{ value: '', label: 'Select client' }, ...clients.map((c) => ({ value: c.id, label: formatClientOptionLabel(c) }))]
@@ -175,19 +196,22 @@ export default function Quotations() {
       key: 'actions',
       label: 'Actions',
       render: (row) => (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button onClick={() => { setPreviewQuote(row); setPreviewOpen(true) }} className="text-slate-400 hover:text-teal-600" title="Preview">
             <Eye className="h-4 w-4" />
           </button>
-          <button onClick={() => openEdit(row)} className="text-slate-400 hover:text-teal-600">
+          <button onClick={() => handleExportPdf(row)} className="text-slate-400 hover:text-teal-600" title="Download PDF">
+            <Download className="h-4 w-4" />
+          </button>
+          <button onClick={() => openEdit(row)} className="text-slate-400 hover:text-teal-600" title="Edit">
             <Pencil className="h-4 w-4" />
           </button>
-          {row.status === 'accepted' && (
-            <button onClick={() => handleCreateBooking(row)} className="text-xs text-teal-600 hover:underline">
-              Book
+          {['sent', 'accepted'].includes(row.status) && (
+            <button onClick={() => handleCreateBooking(row)} className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:underline" title="Create booking">
+              <CalendarCheck className="h-3.5 w-3.5" /> Book
             </button>
           )}
-          <button onClick={() => handleDelete(row)} className="text-slate-400 hover:text-red-600">
+          <button onClick={() => handleDelete(row)} className="text-slate-400 hover:text-red-600" title="Delete">
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
@@ -278,7 +302,9 @@ export default function Quotations() {
                 <p className="whitespace-pre-wrap text-sm text-slate-600">{previewQuote.terms}</p>
               </div>
             )}
-            <Button variant="secondary" disabled title="Coming soon">Export PDF (Coming soon)</Button>
+            <Button variant="secondary" onClick={() => handleExportPdf(previewQuote)}>
+              <Download className="h-4 w-4" /> Export PDF
+            </Button>
           </div>
         )}
       </Modal>

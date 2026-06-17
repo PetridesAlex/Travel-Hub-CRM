@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Plus, SlidersHorizontal, Sparkles, Target, TrendingUp, CalendarClock,
   User, Mail, MapPin, Tag, Wallet, Flag, Calendar, MoreHorizontal,
@@ -29,6 +29,7 @@ import { TRAVEL_TYPES, LEAD_STATUSES } from '../constants/enums'
 import { formatClientName, formatClientOptionLabel } from '../utils/format'
 import { LEAD_STATUS_ROW_ACCENT } from '../utils/leadDisplay'
 import { notifySlack } from '../services/slackNotify'
+import { defaultLeadFollowUpDate } from '../utils/exportPdf'
 
 const emptyForm = {
   client_id: '',
@@ -80,6 +81,7 @@ function FilterField({ label, children }) {
 export default function Leads() {
   const { user, session } = useAuth()
   const { agency } = useAgency()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [allLeads, setAllLeads] = useState([])
   const [clients, setClients] = useState([])
@@ -176,6 +178,16 @@ export default function Leads() {
             due_date: payload.follow_up_date,
             status: 'pending',
           }, user.id, agency?.id)
+        } else {
+          const dueDate = defaultLeadFollowUpDate()
+          await createTask({
+            client_id: payload.client_id || null,
+            lead_id: lead.id,
+            title: `Follow up: ${payload.destination || 'New lead'}`,
+            due_date: dueDate,
+            status: 'pending',
+          }, user.id, agency?.id)
+          await updateLead(lead.id, { follow_up_date: dueDate })
         }
       }
       setModalOpen(false)
@@ -295,6 +307,7 @@ export default function Leads() {
       cellClassName: `${PREMIUM_CELL_CLASS} w-16 sm:w-20`,
       render: (row) => (
         <LeadActionsCell
+          onCreateQuote={() => navigate(`/quotations?lead=${row.id}`)}
           onEdit={() => openEdit(row)}
           onDelete={() => handleDelete(row)}
         />

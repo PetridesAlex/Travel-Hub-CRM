@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Download } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
 import { getInvoices, createInvoice, updateInvoice, deleteInvoice } from '../services/invoices'
@@ -13,6 +13,7 @@ import Select from '../components/ui/Select'
 import Badge from '../components/ui/Badge'
 import { INVOICE_STATUSES, INVOICE_SERVICE_TYPES } from '../constants/enums'
 import { formatCurrency, formatDate, formatClientName, formatClientOptionLabel, labelFor, getTodayISO } from '../utils/format'
+import { exportInvoicePdf } from '../utils/exportPdf'
 
 const emptyForm = {
   invoice_number: '',
@@ -321,6 +322,11 @@ export default function Invoices() {
     }
   }
 
+  function handleExportPdf(invoice) {
+    const client = invoice.clients || clients.find((c) => c.id === invoice.client_id)
+    exportInvoicePdf(invoice, { agency, client })
+  }
+
   const sortedClients = useMemo(
     () => [...clients].sort((a, b) => formatClientOptionLabel(a).localeCompare(formatClientOptionLabel(b))),
     [clients],
@@ -359,10 +365,13 @@ export default function Invoices() {
       label: 'Actions',
       render: (row) => (
         <div className="flex gap-2">
-          <button onClick={() => openEdit(row)} className="text-slate-400 hover:text-teal-600">
+          <button onClick={() => handleExportPdf(row)} className="text-slate-400 hover:text-teal-600" title="Download PDF">
+            <Download className="h-4 w-4" />
+          </button>
+          <button onClick={() => openEdit(row)} className="text-slate-400 hover:text-teal-600" title="Edit">
             <Pencil className="h-4 w-4" />
           </button>
-          <button onClick={() => handleDelete(row)} className="text-slate-400 hover:text-red-600">
+          <button onClick={() => handleDelete(row)} className="text-slate-400 hover:text-red-600" title="Delete">
             <Trash2 className="h-4 w-4" />
           </button>
         </div>

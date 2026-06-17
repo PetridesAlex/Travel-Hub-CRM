@@ -115,6 +115,7 @@ export default function Dashboard() {
   const [pipeline, setPipeline] = useState([])
   const [todayFocus, setTodayFocus] = useState([])
   const [upcomingTrips, setUpcomingTrips] = useState([])
+  const [paymentsDue, setPaymentsDue] = useState([])
   const [recentActivity, setRecentActivity] = useState([])
 
   useEffect(() => {
@@ -142,6 +143,7 @@ export default function Dashboard() {
         followUpLeadsRes,
         tasksDueRes,
         upcomingBookingsRes,
+        paymentsDueRes,
         recentClients,
         recentLeads,
         recentQuotes,
@@ -163,6 +165,18 @@ export default function Dashboard() {
         supabase.from('leads').select('id, destination, follow_up_date, clients(full_name)').eq('follow_up_date', today).not('status', 'in', '(confirmed,lost)').limit(5),
         supabase.from('tasks').select('id, title, due_date').eq('due_date', today).eq('status', 'pending').limit(5),
         supabase.from('bookings').select('id, booking_reference, travel_start_date, travel_end_date, status, clients(full_name, company_name)').gte('travel_start_date', today).in('status', ['pending', 'confirmed']).order('travel_start_date', { ascending: true }).limit(5),
+        (() => {
+          const horizon = new Date()
+          horizon.setDate(horizon.getDate() + 7)
+          return supabase
+            .from('bookings')
+            .select('id, booking_reference, balance_due, due_date, currency, clients(full_name, company_name, client_type)')
+            .gt('balance_due', 0)
+            .not('due_date', 'is', null)
+            .lte('due_date', horizon.toISOString().slice(0, 10))
+            .order('due_date', { ascending: true })
+            .limit(5)
+        })(),
         supabase.from('clients').select('id, full_name, company_name, client_type, email, created_at').order('created_at', { ascending: false }).limit(5),
         supabase.from('leads').select('id, destination, status, notes, created_at, clients(full_name)').order('created_at', { ascending: false }).limit(5),
         supabase.from('quotations').select('id, title, status, selling_price, created_at').order('created_at', { ascending: false }).limit(5),
@@ -219,6 +233,7 @@ export default function Dashboard() {
       setPipeline(pipelineData)
       setTodayFocus(focusItems)
       setUpcomingTrips(upcomingBookingsRes.data || [])
+      setPaymentsDue(paymentsDueRes.data || [])
 
       const activity = [
         ...(recentClients.data || []).map((r) => ({
@@ -423,6 +438,58 @@ export default function Dashboard() {
           </div>
         </SectionCard>
       </div>
+
+      {/* Payments due */}
+      <SectionCard
+        title="Payments due soon"
+        subtitle="Booking balances due in the next 7 days (Slack reminders run daily)"
+        icon={Wallet}
+        action={
+          <Link to="/bookings" className="text-xs font-semibold text-teal-700 hover:text-teal-800">
+            All bookings
+          </Link>
+        }
+      >
+        {paymentsDue.length === 0 ? (
+          <div className="flex items-center gap-3 rounded-xl bg-emerald-50 px-4 py-5">
+            <Wallet className="h-5 w-5 text-emerald-600" />
+            <p className="text-sm text-emerald-800">No outstanding balances due this week.</p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {paymentsDue.map((booking) => {
+              const clientName = booking.clients?.client_type === 'business' && booking.clients?.company_name
+                ? booking.clients.company_name
+                : booking.clients?.full_name || 'Client'
+              const isOverdue = booking.due_date && booking.due_date < getTodayISO()
+              return (
+                <li key={booking.id}>
+                  <Link
+                    to="/bookings"
+                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition hover:border-teal-200 hover:bg-teal-50/40 ${
+                      isOverdue ? 'border-red-200 bg-red-50/50' : 'border-slate-100 bg-slate-50/50'
+                    }`}
+                  >
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${isOverdue ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                      <Wallet className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {clientName} · {booking.booking_reference || 'Booking'}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {formatCurrency(booking.balance_due, booking.currency)} due {formatDate(booking.due_date)}
+                        {isOverdue ? ' · Overdue' : ''}
+                      </p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-slate-300" />
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </SectionCard>
 
       {/* Today + Upcoming */}
       <div className="grid gap-6 lg:grid-cols-2">

@@ -1,5 +1,5 @@
 import {
-  CalendarClock, Mail, Pencil, Phone, Trash2, User,
+  CalendarClock, Mail, Pencil, Phone, Trash2, User, FileText,
 } from 'lucide-react'
 import Badge from '../ui/Badge'
 import { LEAD_STATUSES, TRAVEL_TYPES } from '../../constants/enums'
@@ -136,9 +136,20 @@ export function LeadFollowUpCell({ followUpDate, status }) {
   )
 }
 
-export function LeadActionsCell({ onEdit, onDelete }) {
+export function LeadActionsCell({ onEdit, onDelete, onCreateQuote }) {
   return (
     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+      {onCreateQuote && (
+        <button
+          type="button"
+          onClick={onCreateQuote}
+          className="rounded-lg border border-transparent p-2 text-slate-400 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+          aria-label="Create quotation"
+          title="Create quotation"
+        >
+          <FileText className="h-4 w-4" />
+        </button>
+      )}
       <button
         type="button"
         onClick={onEdit}
