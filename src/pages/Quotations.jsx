@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Eye, Download, CalendarCheck } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams, useNavigate, Link } from 'react-router-dom'
+import {
+  Plus, Pencil, Trash2, Eye, Download, CalendarCheck, FileText,
+  Search, Sparkles, MapPin, TrendingUp, Loader2,
+} from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
 import { getQuotations, createQuotation, updateQuotation, deleteQuotation } from '../services/quotations'
@@ -13,6 +16,9 @@ import Modal, { ModalFooter } from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Badge from '../components/ui/Badge'
+import SearchableSelect, {
+  clientSearchText, clientSubLabel, leadSearchText, leadSubLabel,
+} from '../components/ui/SearchableSelect'
 import { QUOTATION_STATUSES } from '../constants/enums'
 import { formatCurrency, formatClientName, formatClientOptionLabel, labelFor } from '../utils/format'
 import { notifySlack } from '../services/slackNotify'
@@ -32,6 +38,27 @@ const emptyForm = {
   status: 'draft',
 }
 
+const CURRENCIES = [
+  { value: 'EUR', label: 'EUR — Euro' },
+  { value: 'GBP', label: 'GBP — British Pound' },
+  { value: 'USD', label: 'USD — US Dollar' },
+]
+
+function FormSection({ title, description, children }) {
+  return (
+    <section className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 sm:p-5">
+      <div className="mb-4">
+        <h3 className="text-sm font-bold text-slate-900">{title}</h3>
+        {description && <p className="mt-1 text-xs leading-relaxed text-slate-500">{description}</p>}
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
+  )
+}
+
+const fieldClass =
+  'w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20'
+
 export default function Quotations() {
   const { user, session } = useAuth()
   const { agency } = useAgency()
@@ -47,6 +74,8 @@ export default function Quotations() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [tableSearch, setTableSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
 
   useEffect(() => {
     loadData()
@@ -108,7 +137,24 @@ export default function Quotations() {
     setModalOpen(true)
   }
 
+  function setField(key, value) {
+    setForm((prev) => {
+      const next = { ...prev, [key]: value }
+      if (key === 'lead_id' && value) {
+        const lead = leads.find((l) => l.id === value)
+        if (lead?.client_id) next.client_id = lead.client_id
+        if (lead?.destination && !prev.destination) next.destination = lead.destination
+        if (lead?.budget && !prev.selling_price) next.selling_price = String(lead.budget)
+      }
+      return next
+    })
+  }
+
   async function handleSave() {
+    if (!form.title?.trim()) {
+      alert('Please enter a quotation title.')
+      return
+    }
     setSaving(true)
     try {
       const payload = {
@@ -180,38 +226,85 @@ export default function Quotations() {
     exportQuotationPdf(quote, { agency, client })
   }
 
-  const clientOptions = [{ value: '', label: 'Select client' }, ...clients.map((c) => ({ value: c.id, label: formatClientOptionLabel(c) }))]
-  const leadOptions = [{ value: '', label: 'No lead linked' }, ...leads.map((l) => ({ value: l.id, label: l.destination || `Lead ${l.id.slice(0, 8)}` }))]
+  const stats = useMemo(() => {
+    const draft = quotations.filter((q) => q.status === 'draft').length
+    const sent = quotations.filter((q) => q.status === 'sent').length
+    const accepted = quotations.filter((q) => q.status === 'accepted').length
+    const pipeline = quotations.reduce((sum, q) => sum + Number(q.selling_price || 0), 0)
+    const profit = quotations.reduce((sum, q) => sum + Number(q.profit || 0), 0)
+    return { total: quotations.length, draft, sent, accepted, pipeline, profit }
+  }, [quotations])
 
+  const filteredQuotations = useMemo(() => {
+    let rows = quotations
+    if (statusFilter) rows = rows.filter((q) => q.status === statusFilter)
+    if (tableSearch.trim()) {
+      const term = tableSearch.trim().toLowerCase()
+      rows = rows.filter((q) => {
+        const clientName = formatClientName(q.clients).toLowerCase()
+        return (
+          (q.title || '').toLowerCase().includes(term)
+          || (q.destination || '').toLowerCase().includes(term)
+          || clientName.includes(term)
+        )
+      })
+    }
+    return rows
+  }, [quotations, statusFilter, tableSearch])
+
+  const selectedClient = clients.find((c) => c.id === form.client_id)
   const estimatedProfit = (Number(form.selling_price) || 0) - (Number(form.supplier_cost) || 0)
+  const marginPct = Number(form.selling_price) > 0
+    ? Math.round((estimatedProfit / Number(form.selling_price)) * 100)
+    : 0
 
   const columns = [
-    { key: 'title', label: 'Title' },
-    { key: 'client', label: 'Client', render: (row) => formatClientName(row.clients) },
-    { key: 'destination', label: 'Destination' },
-    { key: 'selling_price', label: 'Price', render: (row) => formatCurrency(row.selling_price, row.currency) },
-    { key: 'profit', label: 'Profit', render: (row) => formatCurrency(row.profit, row.currency) },
+    {
+      key: 'title',
+      label: 'Quote',
+      render: (row) => (
+        <div className="min-w-[10rem]">
+          <p className="font-semibold text-slate-900">{row.title}</p>
+          {row.destination && (
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+              <MapPin className="h-3 w-3 shrink-0" />{row.destination}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    { key: 'client', label: 'Client', render: (row) => <span className="font-medium text-slate-800">{formatClientName(row.clients)}</span> },
+    {
+      key: 'selling_price',
+      label: 'Price',
+      render: (row) => <span className="font-semibold tabular-nums text-slate-900">{formatCurrency(row.selling_price, row.currency)}</span>,
+    },
+    {
+      key: 'profit',
+      label: 'Profit',
+      render: (row) => <span className="font-medium tabular-nums text-emerald-700">{formatCurrency(row.profit, row.currency)}</span>,
+    },
     { key: 'status', label: 'Status', render: (row) => <Badge status={row.status} label={labelFor(QUOTATION_STATUSES, row.status)} /> },
     {
       key: 'actions',
       label: 'Actions',
       render: (row) => (
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => { setPreviewQuote(row); setPreviewOpen(true) }} className="text-slate-400 hover:text-teal-600" title="Preview">
+        <div className="flex flex-wrap items-center gap-1">
+          <button type="button" onClick={() => { setPreviewQuote(row); setPreviewOpen(true) }} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-teal-600" title="Preview">
             <Eye className="h-4 w-4" />
           </button>
-          <button onClick={() => handleExportPdf(row)} className="text-slate-400 hover:text-teal-600" title="Download PDF">
+          <button type="button" onClick={() => handleExportPdf(row)} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-teal-600" title="Download PDF">
             <Download className="h-4 w-4" />
           </button>
-          <button onClick={() => openEdit(row)} className="text-slate-400 hover:text-teal-600" title="Edit">
+          <button type="button" onClick={() => openEdit(row)} className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-teal-600" title="Edit">
             <Pencil className="h-4 w-4" />
           </button>
           {['sent', 'accepted'].includes(row.status) && (
-            <button onClick={() => handleCreateBooking(row)} className="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:underline" title="Create booking">
+            <button type="button" onClick={() => handleCreateBooking(row)} className="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-semibold text-teal-700 transition hover:bg-teal-100" title="Create booking">
               <CalendarCheck className="h-3.5 w-3.5" /> Book
             </button>
           )}
-          <button onClick={() => handleDelete(row)} className="text-slate-400 hover:text-red-600" title="Delete">
+          <button type="button" onClick={() => handleDelete(row)} className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600" title="Delete">
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
@@ -220,91 +313,249 @@ export default function Quotations() {
   ]
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">Quotations</h2>
-          <p className="text-sm text-slate-500">Create and manage travel quotes</p>
+    <div className="space-y-5 sm:space-y-6">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-900 via-slate-800 to-violet-900 p-5 shadow-xl sm:p-6">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-violet-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-12 left-1/4 h-36 w-36 rounded-full bg-teal-400/15 blur-3xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-violet-100">
+              <Sparkles className="h-3.5 w-3.5" />
+              Sales
+            </div>
+            <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Quotations</h2>
+            <p className="mt-1 text-sm text-slate-300">Build professional travel quotes, export PDFs, and convert to bookings</p>
+          </div>
+          <Button onClick={openAdd} className="shrink-0 shadow-lg shadow-violet-900/30">
+            <Plus className="h-4 w-4" /> New quotation
+          </Button>
         </div>
-        <Button onClick={openAdd}><Plus className="h-4 w-4" /> Create Quotation</Button>
+        <div className="relative mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: 'Total quotes', value: stats.total, icon: FileText },
+            { label: 'Draft', value: stats.draft, icon: Pencil },
+            { label: 'Pipeline value', value: formatCurrency(stats.pipeline), icon: TrendingUp },
+            { label: 'Total profit', value: formatCurrency(stats.profit), icon: Sparkles },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur-sm">
+              <div className="flex items-center gap-2 text-violet-200/80">
+                <Icon className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider">{label}</span>
+              </div>
+              <p className="mt-1 text-lg font-bold tabular-nums text-white">{value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            value={tableSearch}
+            onChange={(e) => setTableSearch(e.target.value)}
+            placeholder="Search quotes by title, destination, or client…"
+            className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-4 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[{ value: '', label: 'All' }, ...QUOTATION_STATUSES].map((f) => (
+            <button
+              key={f.value || 'all'}
+              type="button"
+              onClick={() => setStatusFilter(f.value)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                statusFilter === f.value
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
-        <p className="text-slate-500">Loading...</p>
+        <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
+        </div>
       ) : (
-        <Table columns={columns} data={quotations} emptyMessage="No quotations yet." />
+        <Table
+          variant="premium"
+          columns={columns}
+          data={filteredQuotations}
+          emptyMessage={tableSearch || statusFilter ? 'No quotations match your filters.' : 'No quotations yet. Create your first quote for a client.'}
+        />
       )}
 
+      {/* Create / Edit modal */}
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editing ? 'Edit Quotation' : 'Create Quotation'}
-        footer={<ModalFooter onCancel={() => setModalOpen(false)} onSave={handleSave} saving={saving} />}
+        size="xl"
+        title={editing ? 'Edit quotation' : 'New quotation'}
+        subtitle={editing ? 'Update pricing, inclusions, and status' : 'Search for a client, link a lead, and build a professional quote'}
+        footer={
+          <ModalFooter
+            onCancel={() => setModalOpen(false)}
+            onSave={handleSave}
+            saving={saving}
+            saveLabel={editing ? 'Save changes' : 'Create quotation'}
+          />
+        }
       >
-        <div className="space-y-3">
-          <Select label="Client" value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} options={clientOptions} />
-          <Select label="Lead" value={form.lead_id} onChange={(e) => setForm({ ...form, lead_id: e.target.value })} options={leadOptions} />
-          <Input label="Title *" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <Input label="Destination" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Supplier Cost" type="number" value={form.supplier_cost} onChange={(e) => setForm({ ...form, supplier_cost: e.target.value })} />
-            <Input label="Selling Price" type="number" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} />
-          </div>
-          <div className="rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-800">
-            Estimated Profit: {formatCurrency(estimatedProfit, form.currency)}
-            <span className="ml-1 text-xs text-teal-600">(final profit calculated by database on save)</span>
-          </div>
-          <Input label="Currency" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} />
-          <Select label="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} options={QUOTATION_STATUSES} />
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Inclusions</label>
-            <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" rows={2} value={form.inclusions} onChange={(e) => setForm({ ...form, inclusions: e.target.value })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Exclusions</label>
-            <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" rows={2} value={form.exclusions} onChange={(e) => setForm({ ...form, exclusions: e.target.value })} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Terms</label>
-            <textarea className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" rows={2} value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value })} />
-          </div>
+        <div className="space-y-5">
+          <FormSection title="Client & lead" description="Search by name, email, phone, or company — works with large client lists.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SearchableSelect
+                label="Client"
+                hint={`${clients.length} clients in your agency`}
+                value={form.client_id}
+                onChange={(id) => setField('client_id', id)}
+                items={clients}
+                getValue={(c) => c.id}
+                getLabel={formatClientOptionLabel}
+                getSearchText={clientSearchText}
+                getSubLabel={clientSubLabel}
+                placeholder="Search client by name, email, or phone…"
+                emptyLabel="No clients match. Try a different search or add a client first."
+                clearLabel="No client selected"
+              />
+              <SearchableSelect
+                label="Linked lead (optional)"
+                value={form.lead_id}
+                onChange={(id) => setField('lead_id', id)}
+                items={leads}
+                getValue={(l) => l.id}
+                getLabel={(l) => l.destination || `Lead ${l.id.slice(0, 8)}`}
+                getSearchText={leadSearchText}
+                getSubLabel={leadSubLabel}
+                placeholder="Search leads by destination…"
+                emptyLabel="No leads match."
+                clearLabel="No lead linked"
+              />
+            </div>
+            {selectedClient && (
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Selected client</p>
+                <p className="mt-1 font-semibold text-slate-900">{formatClientOptionLabel(selectedClient)}</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {[selectedClient.email, selectedClient.phone].filter(Boolean).join(' · ') || 'No contact on file'}
+                </p>
+                <Link to={`/clients/${selectedClient.id}`} className="mt-2 inline-flex text-xs font-semibold text-teal-600 hover:text-teal-700">
+                  View client profile →
+                </Link>
+              </div>
+            )}
+          </FormSection>
+
+          <FormSection title="Trip details" description="What you're quoting for the traveller.">
+            <Input label="Quotation title" value={form.title} onChange={(e) => setField('title', e.target.value)} placeholder="e.g. Maldives honeymoon package — May 2026" required />
+            <Input label="Destination" value={form.destination} onChange={(e) => setField('destination', e.target.value)} placeholder="e.g. Maldives, Rhodes, Dubai" />
+          </FormSection>
+
+          <FormSection title="Pricing" description="Supplier cost vs selling price — profit is calculated automatically.">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="Supplier cost" type="number" min="0" step="0.01" value={form.supplier_cost} onChange={(e) => setField('supplier_cost', e.target.value)} placeholder="0.00" />
+              <Input label="Selling price" type="number" min="0" step="0.01" value={form.selling_price} onChange={(e) => setField('selling_price', e.target.value)} placeholder="0.00" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Select label="Currency" value={form.currency} onChange={(e) => setField('currency', e.target.value)} options={CURRENCIES} />
+              <Select label="Status" value={form.status} onChange={(e) => setField('status', e.target.value)} options={QUOTATION_STATUSES} />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Est. profit</p>
+                <p className="mt-1 text-xl font-bold tabular-nums text-emerald-900">{formatCurrency(estimatedProfit, form.currency)}</p>
+              </div>
+              <div className="rounded-xl border border-violet-200/80 bg-gradient-to-br from-violet-50 to-white p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-violet-700">Margin</p>
+                <p className="mt-1 text-xl font-bold tabular-nums text-violet-900">{marginPct}%</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Client pays</p>
+                <p className="mt-1 text-xl font-bold tabular-nums text-slate-900">{formatCurrency(form.selling_price || 0, form.currency)}</p>
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection title="Quote content" description="Shown on the PDF and client preview.">
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Inclusions</label>
+              <textarea className={fieldClass} rows={3} value={form.inclusions} onChange={(e) => setField('inclusions', e.target.value)} placeholder="Flights, transfers, hotel, meals…" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Exclusions</label>
+              <textarea className={fieldClass} rows={2} value={form.exclusions} onChange={(e) => setField('exclusions', e.target.value)} placeholder="Visa fees, personal expenses…" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Terms & conditions</label>
+              <textarea className={fieldClass} rows={3} value={form.terms} onChange={(e) => setField('terms', e.target.value)} placeholder="Payment terms, cancellation policy…" />
+            </div>
+          </FormSection>
         </div>
       </Modal>
 
-      <Modal isOpen={previewOpen} onClose={() => setPreviewOpen(false)} title="Quotation Preview">
+      {/* Preview modal */}
+      <Modal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        size="lg"
+        title="Quotation preview"
+        subtitle="Review before sending or exporting PDF"
+        footer={
+          previewQuote && (
+            <>
+              <Button variant="secondary" onClick={() => setPreviewOpen(false)}>Close</Button>
+              <Button variant="secondary" onClick={() => handleExportPdf(previewQuote)}>
+                <Download className="h-4 w-4" /> Export PDF
+              </Button>
+              <Button onClick={() => { setPreviewOpen(false); openEdit(previewQuote) }}>Edit quote</Button>
+            </>
+          )
+        }
+      >
         {previewQuote && (
-          <div className="quotation-preview space-y-4 border border-slate-200 p-6">
+          <div className="space-y-5 rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-6">
             <div className="border-b border-slate-200 pb-4">
-              <h3 className="text-xl font-bold text-slate-900">{previewQuote.title}</h3>
-              <p className="text-sm text-slate-500">Travel Agency Quotation</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">{agency?.name || 'Travel Agency'}</p>
+              <h3 className="mt-1 text-2xl font-bold text-slate-900">{previewQuote.title}</h3>
+              {previewQuote.destination && (
+                <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><MapPin className="h-4 w-4" />{previewQuote.destination}</p>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-slate-500">Client:</span> {formatClientName(previewQuote.clients)}</div>
-              <div><span className="text-slate-500">Destination:</span> {previewQuote.destination || '—'}</div>
-              <div><span className="text-slate-500">Price:</span> {formatCurrency(previewQuote.selling_price, previewQuote.currency)}</div>
-              <div><span className="text-slate-500">Status:</span> <Badge status={previewQuote.status} /></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+                <p className="text-xs font-semibold uppercase text-slate-500">Client</p>
+                <p className="mt-1 font-semibold text-slate-900">{formatClientName(previewQuote.clients)}</p>
+              </div>
+              <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+                <p className="text-xs font-semibold uppercase text-slate-500">Total price</p>
+                <p className="mt-1 text-2xl font-bold text-teal-700">{formatCurrency(previewQuote.selling_price, previewQuote.currency)}</p>
+                <p className="text-xs text-emerald-600">Profit {formatCurrency(previewQuote.profit, previewQuote.currency)}</p>
+              </div>
             </div>
             {previewQuote.inclusions && (
               <div>
-                <h4 className="font-semibold text-slate-800">Inclusions</h4>
-                <p className="whitespace-pre-wrap text-sm text-slate-600">{previewQuote.inclusions}</p>
+                <h4 className="text-sm font-bold text-slate-800">Inclusions</h4>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">{previewQuote.inclusions}</p>
               </div>
             )}
             {previewQuote.exclusions && (
               <div>
-                <h4 className="font-semibold text-slate-800">Exclusions</h4>
-                <p className="whitespace-pre-wrap text-sm text-slate-600">{previewQuote.exclusions}</p>
+                <h4 className="text-sm font-bold text-slate-800">Exclusions</h4>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">{previewQuote.exclusions}</p>
               </div>
             )}
             {previewQuote.terms && (
               <div>
-                <h4 className="font-semibold text-slate-800">Terms & Conditions</h4>
-                <p className="whitespace-pre-wrap text-sm text-slate-600">{previewQuote.terms}</p>
+                <h4 className="text-sm font-bold text-slate-800">Terms & conditions</h4>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">{previewQuote.terms}</p>
               </div>
             )}
-            <Button variant="secondary" onClick={() => handleExportPdf(previewQuote)}>
-              <Download className="h-4 w-4" /> Export PDF
-            </Button>
           </div>
         )}
       </Modal>
