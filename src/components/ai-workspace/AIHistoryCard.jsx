@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import {
   Plane, Ship, Building2, Map, Mail, Calculator, Truck, CreditCard, Bot,
-  Copy, Check, Eye, Trash2, Loader2,
+  Copy, Check, Eye, Trash2, Loader2, ChevronDown, MailOpen,
 } from 'lucide-react'
 import { labelFor } from '../../utils/format'
 import { AI_TEMPLATE_CATEGORIES } from '../../constants/aiTemplateFields'
@@ -17,17 +18,17 @@ const AGENT_ICONS = {
 }
 
 const CATEGORY_ACCENTS = {
-  flight_offer: 'ai-history-card--teal',
-  cruise_offer: 'ai-history-card--blue',
-  hotel_client_quote: 'ai-history-card--violet',
-  hotel_request: 'ai-history-card--violet',
-  honeymoon_offer: 'ai-history-card--pink',
-  costing: 'ai-history-card--amber',
-  payment_reminder: 'ai-history-card--rose',
-  supplier_request: 'ai-history-card--indigo',
-  itinerary: 'ai-history-card--emerald',
-  general_email: 'ai-history-card--slate',
-  follow_up: 'ai-history-card--slate',
+  flight_offer: 'ai-envelope--teal',
+  cruise_offer: 'ai-envelope--blue',
+  hotel_client_quote: 'ai-envelope--violet',
+  hotel_request: 'ai-envelope--violet',
+  honeymoon_offer: 'ai-envelope--pink',
+  costing: 'ai-envelope--amber',
+  payment_reminder: 'ai-envelope--rose',
+  supplier_request: 'ai-envelope--indigo',
+  itinerary: 'ai-envelope--emerald',
+  general_email: 'ai-envelope--slate',
+  follow_up: 'ai-envelope--slate',
 }
 
 export default function AIHistoryCard({
@@ -40,78 +41,92 @@ export default function AIHistoryCard({
   deleting = false,
   copied = false,
 }) {
+  const [open, setOpen] = useState(false)
   const agentCategory = generation.ai_agents?.category || 'email'
   const Icon = AGENT_ICONS[agentCategory] || Bot
-  const accent = CATEGORY_ACCENTS[generation.generation_type] || 'ai-history-card--slate'
+  const accent = CATEGORY_ACCENTS[generation.generation_type] || 'ai-envelope--slate'
   const categoryLabel = labelFor(AI_TEMPLATE_CATEGORIES, generation.generation_type)
+  const templateName = generation.ai_templates?.name || 'Generation'
   const preview = (generation.generated_output || '').trim()
-  const truncated = preview.length > 280 ? `${preview.slice(0, 280)}…` : preview
+  const truncated = preview.length > 420 ? `${preview.slice(0, 420)}…` : preview
 
   return (
-    <article className={`ai-history-card group relative overflow-hidden rounded-2xl border bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-lg ${accent}`}>
-      <div className="ai-history-card-accent pointer-events-none absolute inset-y-0 left-0 w-1" aria-hidden />
+    <article className={`ai-envelope group ${accent} ${open ? 'ai-envelope--open' : ''}`}>
+      <div className="ai-envelope-flap" aria-hidden />
+      <div className="ai-envelope-seal" aria-hidden>
+        <MailOpen className="h-3.5 w-3.5" />
+      </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-1 gap-3">
-          <div className="ai-history-card-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-xl">
+      <button
+        type="button"
+        className="ai-envelope-header"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <div className="ai-envelope-header-inner">
+          <div className="ai-envelope-icon">
             <Icon className="h-5 w-5" />
           </div>
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-slate-900">
-              {generation.ai_templates?.name || 'Generation'}
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-500">
+          <div className="min-w-0 flex-1 text-left">
+            <span className="ai-envelope-category">{categoryLabel}</span>
+            <h3 className="ai-envelope-title">{templateName}</h3>
+            <p className="ai-envelope-meta">
               {generation.ai_agents?.name}
-              <span className="mx-1.5 text-slate-300">·</span>
-              {categoryLabel}
-              <span className="mx-1.5 text-slate-300">·</span>
+              <span className="mx-1.5 opacity-50">·</span>
               {dateLabel}
             </p>
             {clientLabel && (
-              <span className="ai-history-client-chip mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold">
-                {clientLabel}
-              </span>
+              <span className="ai-envelope-client">{clientLabel}</span>
             )}
           </div>
+          <span className={`ai-envelope-chevron ${open ? 'ai-envelope-chevron--open' : ''}`}>
+            <ChevronDown className="h-5 w-5" />
+          </span>
         </div>
+        {!open && truncated && (
+          <p className="ai-envelope-teaser">{truncated.slice(0, 90)}{truncated.length > 90 ? '…' : ''}</p>
+        )}
+      </button>
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => onView(generation)}
-            className="ai-history-action-btn"
-            title="View full output"
-          >
-            <Eye className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">View</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onCopy(generation.generated_output || '')}
-            className="ai-history-action-btn"
-            title="Copy to clipboard"
-          >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(generation)}
-            disabled={deleting}
-            className="ai-history-action-btn ai-history-action-btn--danger"
-            title="Delete generation"
-          >
-            {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">Delete</span>
-          </button>
+      <div className="ai-envelope-letter" hidden={!open}>
+        <div className="ai-envelope-letter-inner">
+          {truncated ? (
+            <p className="ai-envelope-preview whitespace-pre-wrap">{truncated}</p>
+          ) : (
+            <p className="ai-envelope-preview text-slate-400 italic">No content saved.</p>
+          )}
+          <div className="ai-envelope-actions">
+            <button
+              type="button"
+              onClick={() => onView(generation)}
+              className="ai-history-action-btn"
+              title="View full output"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              <span>View</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onCopy(generation.generated_output || '')}
+              className="ai-history-action-btn"
+              title="Copy to clipboard"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(generation)}
+              disabled={deleting}
+              className="ai-history-action-btn ai-history-action-btn--danger"
+              title="Delete generation"
+            >
+              {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              <span>Delete</span>
+            </button>
+          </div>
         </div>
       </div>
-
-      {truncated && (
-        <p className="ai-history-preview mt-4 line-clamp-4 text-sm leading-relaxed text-slate-600">
-          {truncated}
-        </p>
-      )}
     </article>
   )
 }

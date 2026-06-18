@@ -272,7 +272,7 @@ export default function Quotations() {
       key: 'title',
       label: 'Quote',
       headerClassName: PREMIUM_HEADER_CLASS,
-      headerRender: () => <LeadTableHeader icon={FileText} label="Quote" accent="gradient" />,
+      headerRender: () => <LeadTableHeader icon={FileText} label="Quote" accent="gradient" surface="light" />,
       cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => (
         <div className="min-w-[9rem]">
@@ -289,7 +289,7 @@ export default function Quotations() {
       key: 'client',
       label: 'Client',
       headerClassName: `${PREMIUM_HEADER_CLASS} hidden sm:table-cell`,
-      headerRender: () => <LeadTableHeader icon={User} label="Client" accent="teal" />,
+      headerRender: () => <LeadTableHeader icon={User} label="Client" accent="teal" surface="light" />,
       cellClassName: `${PREMIUM_CELL_CLASS} hidden sm:table-cell`,
       render: (row) => <span className="font-medium text-slate-800">{formatClientName(row.clients)}</span>,
     },
@@ -297,7 +297,7 @@ export default function Quotations() {
       key: 'selling_price',
       label: 'Price',
       headerClassName: PREMIUM_HEADER_CLASS,
-      headerRender: () => <LeadTableHeader icon={Wallet} label="Price" accent="violet" />,
+      headerRender: () => <LeadTableHeader icon={Wallet} label="Price" accent="violet" surface="light" />,
       cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => (
         <span className="text-base font-bold tabular-nums tracking-tight text-slate-900 sm:text-sm">
@@ -309,7 +309,7 @@ export default function Quotations() {
       key: 'profit',
       label: 'Profit',
       headerClassName: `${PREMIUM_HEADER_CLASS} hidden md:table-cell`,
-      headerRender: () => <LeadTableHeader icon={TrendingUp} label="Profit" accent="emerald" />,
+      headerRender: () => <LeadTableHeader icon={TrendingUp} label="Profit" accent="emerald" surface="light" />,
       cellClassName: `${PREMIUM_CELL_CLASS} hidden md:table-cell`,
       render: (row) => (
         <span className="font-semibold tabular-nums text-emerald-700">{formatCurrency(row.profit, row.currency)}</span>
@@ -319,7 +319,7 @@ export default function Quotations() {
       key: 'status',
       label: 'Status',
       headerClassName: PREMIUM_HEADER_CLASS,
-      headerRender: () => <LeadTableHeader icon={Flag} label="Status" accent="amber" />,
+      headerRender: () => <LeadTableHeader icon={Flag} label="Status" accent="amber" surface="light" />,
       cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => <Badge status={row.status} label={labelFor(QUOTATION_STATUSES, row.status)} />,
     },
@@ -327,7 +327,7 @@ export default function Quotations() {
       key: 'actions',
       label: 'Actions',
       headerClassName: `${PREMIUM_HEADER_CLASS} w-[1%] whitespace-nowrap`,
-      headerRender: () => <LeadTableHeader icon={MoreHorizontal} label="Actions" accent="slate" />,
+      headerRender: () => <LeadTableHeader icon={MoreHorizontal} label="Actions" accent="slate" surface="light" />,
       cellClassName: `${PREMIUM_CELL_CLASS} w-[1%] whitespace-nowrap`,
       render: (row) => (
         <div className="flex flex-wrap items-center gap-1">
@@ -426,6 +426,7 @@ export default function Quotations() {
       ) : (
         <Table
           variant="premium"
+          headerTone="light"
           caption="All quotations"
           captionCount={`${filteredQuotations.length} shown`}
           columns={columns}

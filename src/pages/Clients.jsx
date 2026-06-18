@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Pencil, Trash2, User, Building2, Users, SlidersHorizontal,
-  Search, ArrowUpDown, Globe, ChevronDown, X,
+  Search, ArrowUpDown, Globe, ChevronDown, X, Sparkles, Loader2,
+  Phone, MoreHorizontal, UserCircle,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
@@ -13,13 +14,38 @@ import Modal, { ModalFooter } from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import { CLIENT_TYPES } from '../constants/enums'
-import { formatClientName, labelFor } from '../utils/format'
+import { formatClientName, labelFor, formatDateTime } from '../utils/format'
 import { notifySlack } from '../services/slackNotify'
+import LeadTableHeader, { PREMIUM_HEADER_CLASS, PREMIUM_CELL_CLASS } from '../components/leads/LeadTableHeader'
 
 const TYPE_TABS = [
-  { id: '', label: 'All Clients', icon: Users },
-  { id: 'individual', label: 'Individuals', icon: User },
-  { id: 'business', label: 'Corporate', icon: Building2 },
+  {
+    id: '',
+    label: 'All Clients',
+    icon: Users,
+    activeClass: 'border-teal-200/90 bg-gradient-to-br from-teal-50 via-white to-violet-50/40 text-teal-900 shadow-md shadow-teal-900/5 ring-1 ring-teal-500/15',
+    iconActive: 'bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-md shadow-teal-900/20',
+    countActive: 'bg-teal-600 text-white shadow-sm',
+    accent: 'from-teal-400 to-violet-400',
+  },
+  {
+    id: 'individual',
+    label: 'Individuals',
+    icon: User,
+    activeClass: 'border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-teal-50/30 text-sky-900 shadow-md shadow-sky-900/5 ring-1 ring-sky-500/15',
+    iconActive: 'bg-gradient-to-br from-sky-500 to-teal-600 text-white shadow-md shadow-sky-900/20',
+    countActive: 'bg-sky-600 text-white shadow-sm',
+    accent: 'from-sky-400 to-teal-500',
+  },
+  {
+    id: 'business',
+    label: 'Corporate',
+    icon: Building2,
+    activeClass: 'border-violet-200/90 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50/30 text-violet-900 shadow-md shadow-violet-900/5 ring-1 ring-violet-500/15',
+    iconActive: 'bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md shadow-violet-900/20',
+    countActive: 'bg-violet-600 text-white shadow-sm',
+    accent: 'from-violet-400 to-fuchsia-500',
+  },
 ]
 
 const SORT_OPTIONS = [
@@ -78,6 +104,24 @@ function getClientInitials(client) {
   const parts = name.split(' ').filter(Boolean)
   if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
   return name.slice(0, 2).toUpperCase()
+}
+
+function ClientAvatar({ client }) {
+  const isCorporate = client.client_type === 'business'
+  return (
+    <div className="relative shrink-0">
+      <div className={`absolute inset-0 rounded-full blur-[3px] ${isCorporate ? 'bg-violet-400/30' : 'bg-teal-400/30'}`} />
+      <div
+        className={`relative flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold text-white ring-2 ring-white ${
+          isCorporate
+            ? 'bg-gradient-to-br from-violet-600 to-fuchsia-700'
+            : 'bg-gradient-to-br from-teal-600 to-sky-700'
+        }`}
+      >
+        {getClientInitials(client)}
+      </div>
+    </div>
+  )
 }
 
 function ClientTypeBadge({ type }) {
@@ -224,11 +268,12 @@ export default function Clients() {
     }
   }
 
-  const counts = {
-    all: allClients.length,
-    individual: allClients.filter((c) => (c.client_type || 'individual') === 'individual').length,
-    business: allClients.filter((c) => c.client_type === 'business').length,
-  }
+  const counts = useMemo(() => {
+    const individual = allClients.filter((c) => (c.client_type || 'individual') === 'individual').length
+    const business = allClients.filter((c) => c.client_type === 'business').length
+    const nationalities = new Set(allClients.map((c) => c.nationality?.trim()).filter(Boolean)).size
+    return { all: allClients.length, individual, business, nationalities }
+  }, [allClients])
 
   const nationalityOptions = useMemo(() => {
     const values = [...new Set(allClients.map((c) => c.nationality?.trim()).filter(Boolean))].sort((a, b) =>
@@ -253,19 +298,20 @@ export default function Clients() {
     {
       key: 'client_type',
       label: 'Type',
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden sm:table-cell`,
+      headerRender: () => <LeadTableHeader icon={Building2} label="Type" accent="violet" surface="light" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden sm:table-cell`,
       render: (row) => <ClientTypeBadge type={row.client_type} />,
     },
     {
       key: 'name',
       label: 'Customer',
+      headerClassName: PREMIUM_HEADER_CLASS,
+      headerRender: () => <LeadTableHeader icon={UserCircle} label="Customer" accent="gradient" surface="light" />,
+      cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => (
-        <div className="flex items-center gap-3">
-          <div className="relative shrink-0">
-            <div className="absolute inset-0 rounded-full bg-teal-400/25 blur-[2px]" />
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-xs font-bold text-white ring-2 ring-white">
-              {getClientInitials(row)}
-            </div>
-          </div>
+        <div className="flex min-w-[10rem] items-center gap-3">
+          <ClientAvatar client={row} />
           <div className="min-w-0">
             <p className="font-semibold tracking-tight text-slate-900">{getClientPrimaryName(row)}</p>
             <p className="truncate text-xs text-slate-500">{getClientSecondaryLine(row)}</p>
@@ -276,8 +322,11 @@ export default function Clients() {
     {
       key: 'phone',
       label: 'Phone',
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden md:table-cell`,
+      headerRender: () => <LeadTableHeader icon={Phone} label="Phone" accent="teal" surface="light" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden md:table-cell`,
       render: (row) => (
-        <span className={row.phone ? 'font-medium text-slate-800' : 'text-slate-400'}>
+        <span className={row.phone ? 'font-medium tabular-nums text-slate-800' : 'text-slate-400'}>
           {row.phone || '—'}
         </span>
       ),
@@ -285,10 +334,13 @@ export default function Clients() {
     {
       key: 'nationality',
       label: 'Nationality',
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden lg:table-cell`,
+      headerRender: () => <LeadTableHeader icon={Globe} label="Nationality" accent="sky" surface="light" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden lg:table-cell`,
       render: (row) => (
         row.nationality ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-            <Globe className="h-3 w-3 text-slate-400" />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-100 bg-sky-50/80 px-2.5 py-1 text-xs font-medium text-sky-800">
+            <Globe className="h-3 w-3 text-sky-500" />
             {row.nationality}
           </span>
         ) : (
@@ -297,10 +349,23 @@ export default function Clients() {
       ),
     },
     {
+      key: 'created_at',
+      label: 'Added',
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden xl:table-cell`,
+      headerRender: () => <LeadTableHeader icon={Sparkles} label="Added" accent="amber" surface="light" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden xl:table-cell`,
+      render: (row) => (
+        <span className="text-xs font-medium text-slate-600">{formatDateTime(row.created_at)}</span>
+      ),
+    },
+    {
       key: 'actions',
       label: 'Actions',
+      headerClassName: `${PREMIUM_HEADER_CLASS} w-[1%] whitespace-nowrap`,
+      headerRender: () => <LeadTableHeader icon={MoreHorizontal} label="Actions" accent="slate" surface="light" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} w-[1%] whitespace-nowrap`,
       render: (row) => (
-        <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             onClick={() => openEdit(row)}
@@ -323,26 +388,59 @@ export default function Clients() {
   ]
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">Clients</h2>
-          <p className="text-sm text-slate-500">Organise individual travellers and corporate accounts</p>
+    <div className="space-y-5 sm:space-y-6">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-900 via-teal-950 to-violet-950 p-5 shadow-xl sm:p-6">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-teal-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-12 left-1/3 h-36 w-36 rounded-full bg-violet-400/15 blur-3xl" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-100">
+              <Sparkles className="h-3.5 w-3.5" />
+              Client directory
+            </div>
+            <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Clients</h2>
+            <p className="mt-1 max-w-xl text-sm text-slate-300">
+              Organise individual travellers and corporate accounts — your single source of truth for every booking
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => openAdd('individual')}
+              className="!border-white/20 !bg-white/10 !text-white hover:!bg-white/20"
+            >
+              <User className="h-4 w-4" /> Add Individual
+            </Button>
+            <Button onClick={() => openAdd('business')} className="shadow-lg shadow-violet-900/30">
+              <Building2 className="h-4 w-4" /> Add Corporate
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => openAdd('individual')}>
-            <User className="h-4 w-4" /> Add Individual
-          </Button>
-          <Button onClick={() => openAdd('business')}>
-            <Building2 className="h-4 w-4" /> Add Corporate
-          </Button>
+        <div className="relative mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: 'Total clients', value: counts.all, icon: Users },
+            { label: 'Individuals', value: counts.individual, icon: User },
+            { label: 'Corporate', value: counts.business, icon: Building2 },
+            { label: 'Nationalities', value: counts.nationalities, icon: Globe },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur-sm transition hover:bg-white/10">
+              <div className="flex items-center gap-2 text-teal-200/80">
+                <Icon className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider">{label}</span>
+              </div>
+              <p className="mt-1 text-lg font-bold tabular-nums text-white">{value}</p>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50 p-2 shadow-[0_8px_30px_-20px_rgba(15,23,42,0.25)]">
+      {/* Type tabs */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 p-2 shadow-[0_8px_30px_-20px_rgba(15,23,42,0.2)]">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {TYPE_TABS.map(({ id, label, icon: Icon }) => {
+          {TYPE_TABS.map((tab) => {
+            const { id, label, icon: Icon, activeClass, iconActive, countActive, accent } = tab
             const count = id === 'individual' ? counts.individual : id === 'business' ? counts.business : counts.all
             const active = typeFilter === id
             return (
@@ -350,33 +448,33 @@ export default function Clients() {
                 key={id || 'all'}
                 type="button"
                 onClick={() => setTypeFilter(id)}
-                className={`group relative flex items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left transition-all duration-200 sm:flex-col sm:items-start sm:justify-center sm:text-center ${
+                className={`group relative flex items-center justify-between gap-3 rounded-xl border px-4 py-4 text-left transition-all duration-300 sm:flex-col sm:items-center sm:justify-center sm:text-center ${
                   active
-                    ? 'border-teal-200/90 bg-gradient-to-b from-teal-50 via-white to-white text-teal-900 shadow-md shadow-teal-900/5 ring-1 ring-teal-500/15'
-                    : 'border-transparent bg-white/60 text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-sm'
+                    ? activeClass
+                    : 'border-transparent bg-white/70 text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-md'
                 }`}
               >
                 {active && (
-                  <span className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-gradient-to-r from-teal-400 to-teal-600 sm:inset-x-6" />
+                  <span className={`absolute inset-x-6 top-0 h-0.5 rounded-full bg-gradient-to-r ${accent}`} />
                 )}
-                <div className="flex items-center gap-3 sm:w-full sm:flex-col sm:gap-2">
+                <div className="flex items-center gap-3 sm:flex-col sm:gap-2">
                   <span
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
                       active
-                        ? 'bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-md shadow-teal-900/20'
-                        : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200 group-hover:text-slate-700'
+                        ? `${iconActive} scale-105`
+                        : 'bg-slate-100 text-slate-500 group-hover:scale-105 group-hover:bg-slate-200 group-hover:text-slate-700'
                     }`}
                   >
-                    <Icon className="h-[18px] w-[18px]" />
+                    <Icon className="h-5 w-5" />
                   </span>
-                  <span className={`text-sm font-semibold tracking-tight ${active ? 'text-teal-900' : ''}`}>
+                  <span className={`text-sm font-bold tracking-tight ${active ? '' : 'text-slate-700'}`}>
                     {label}
                   </span>
                 </div>
                 <span
-                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold tabular-nums transition-colors sm:mt-1 ${
+                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold tabular-nums transition-all duration-300 sm:mt-1 ${
                     active
-                      ? 'bg-teal-600 text-white shadow-sm'
+                      ? countActive
                       : 'bg-slate-200/80 text-slate-600 group-hover:bg-slate-300/80'
                   }`}
                 >
@@ -388,20 +486,20 @@ export default function Clients() {
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50 p-4 shadow-[0_8px_30px_-20px_rgba(15,23,42,0.25)] sm:p-5">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-500/30 to-transparent" />
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-md shadow-teal-900/20">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-md shadow-teal-900/20">
               <SlidersHorizontal className="h-4 w-4" />
             </span>
             <div>
-              <p className="text-sm font-semibold tracking-tight text-slate-900">Search & filters</p>
-              <p className="text-xs text-slate-500">Find clients quickly by name, date, or nationality</p>
+              <p className="text-sm font-bold tracking-tight text-slate-900">Search & filters</p>
+              <p className="text-xs text-slate-500">Find clients by name, nationality, or sort order</p>
             </div>
           </div>
-          <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-semibold tabular-nums text-slate-600 shadow-sm">
+          <span className="rounded-full border border-teal-100 bg-teal-50 px-3 py-1 text-xs font-bold tabular-nums text-teal-800">
             {clients.length} of {counts.all} shown
           </span>
         </div>
@@ -494,9 +592,22 @@ export default function Clients() {
       </div>
 
       {loading ? (
-        <p className="text-slate-500">Loading...</p>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white py-20 shadow-sm">
+          <Loader2 className="h-7 w-7 animate-spin text-teal-600" />
+          <p className="text-sm text-slate-500">Loading your client directory…</p>
+        </div>
       ) : (
         <Table
+          variant="premium"
+          headerTone="light"
+          caption={
+            typeFilter === 'business'
+              ? 'Corporate accounts'
+              : typeFilter === 'individual'
+                ? 'Individual travellers'
+                : 'All clients'
+          }
+          captionCount={`${clients.length} shown`}
           columns={columns}
           data={clients}
           onRowClick={(row) => navigate(`/clients/${row.id}`)}

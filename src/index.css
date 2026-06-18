@@ -1055,6 +1055,259 @@ body {
   border-color: rgba(148, 163, 184, 0.5);
 }
 
+/* ── AI envelope history cards ── */
+.ai-envelope {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px -8px rgba(15, 23, 42, 0.18);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.ai-envelope:hover {
+  box-shadow: 0 12px 32px -12px rgba(15, 23, 42, 0.22);
+}
+
+.ai-envelope--open {
+  box-shadow: 0 16px 40px -14px rgba(15, 23, 42, 0.28);
+}
+
+.ai-envelope-flap {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  width: 72%;
+  max-width: 280px;
+  height: 28px;
+  transform: translateX(-50%);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.ai-envelope-seal {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  height: 2rem;
+  width: 2rem;
+  transform: translateX(-50%);
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.25s;
+}
+
+.ai-envelope--open .ai-envelope-seal {
+  opacity: 0;
+  transform: translateX(-50%) scale(0.6);
+}
+
+.ai-envelope-header {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  padding: 2.25rem 1.25rem 1.25rem;
+  text-align: left;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: padding 0.25s ease;
+}
+
+@media (min-width: 640px) {
+  .ai-envelope-header {
+    padding: 2.5rem 1.5rem 1.5rem;
+  }
+}
+
+.ai-envelope--open .ai-envelope-header {
+  padding-bottom: 0.75rem;
+}
+
+.ai-envelope-header-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+}
+
+.ai-envelope-icon {
+  display: flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.875rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ai-envelope-category {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.22);
+  padding: 0.2rem 0.65rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.ai-envelope-title {
+  margin-top: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.ai-envelope-meta {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ai-envelope-client {
+  display: inline-flex;
+  margin-top: 0.5rem;
+  align-items: center;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0.2rem 0.65rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.ai-envelope-chevron {
+  display: flex;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  transition: transform 0.25s ease, background 0.2s;
+}
+
+.ai-envelope-chevron--open {
+  transform: rotate(180deg);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.ai-envelope-teaser {
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ai-envelope-letter {
+  position: relative;
+  z-index: 4;
+  margin: 0 0.75rem 0.75rem;
+  animation: ai-envelope-slide 0.3s ease-out;
+}
+
+@media (min-width: 640px) {
+  .ai-envelope-letter {
+    margin: 0 1rem 1rem;
+  }
+}
+
+@keyframes ai-envelope-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ai-envelope-letter-inner {
+  border-radius: 0.875rem;
+  background: #fff;
+  padding: 1.25rem;
+  box-shadow: 0 8px 24px -8px rgba(15, 23, 42, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.ai-envelope-preview {
+  max-height: 12rem;
+  overflow-y: auto;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: #475569;
+}
+
+.ai-envelope-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* Solid category backgrounds */
+.ai-envelope--teal { background: #0d9488; }
+.ai-envelope--teal .ai-envelope-flap { background: #0f766e; }
+.ai-envelope--teal .ai-envelope-client { color: #0f766e; }
+
+.ai-envelope--blue { background: #2563eb; }
+.ai-envelope--blue .ai-envelope-flap { background: #1d4ed8; }
+.ai-envelope--blue .ai-envelope-client { color: #1d4ed8; }
+
+.ai-envelope--violet { background: #7c3aed; }
+.ai-envelope--violet .ai-envelope-flap { background: #6d28d9; }
+.ai-envelope--violet .ai-envelope-client { color: #6d28d9; }
+
+.ai-envelope--pink { background: #db2777; }
+.ai-envelope--pink .ai-envelope-flap { background: #be185d; }
+.ai-envelope--pink .ai-envelope-client { color: #be185d; }
+
+.ai-envelope--amber { background: #d97706; }
+.ai-envelope--amber .ai-envelope-flap { background: #b45309; }
+.ai-envelope--amber .ai-envelope-client { color: #b45309; }
+
+.ai-envelope--rose { background: #e11d48; }
+.ai-envelope--rose .ai-envelope-flap { background: #be123c; }
+.ai-envelope--rose .ai-envelope-client { color: #be123c; }
+
+.ai-envelope--indigo { background: #4f46e5; }
+.ai-envelope--indigo .ai-envelope-flap { background: #4338ca; }
+.ai-envelope--indigo .ai-envelope-client { color: #4338ca; }
+
+.ai-envelope--emerald { background: #059669; }
+.ai-envelope--emerald .ai-envelope-flap { background: #047857; }
+.ai-envelope--emerald .ai-envelope-client { color: #047857; }
+
+.ai-envelope--slate { background: #475569; }
+.ai-envelope--slate .ai-envelope-flap { background: #334155; }
+.ai-envelope--slate .ai-envelope-client { color: #334155; }
+
 .ai-history-card-accent {
   background: linear-gradient(180deg, #6366f1, #818cf8);
 }

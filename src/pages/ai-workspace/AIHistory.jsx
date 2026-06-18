@@ -160,7 +160,7 @@ export default function AIHistory() {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filtered.map((gen) => (
             <AIHistoryCard
               key={gen.id}

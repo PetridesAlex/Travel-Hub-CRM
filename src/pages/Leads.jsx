@@ -15,7 +15,7 @@ import Modal, { ModalFooter } from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import LeadInquiryCell from '../components/leads/LeadInquiryCell'
-import LeadTableHeader, { PREMIUM_HEADER_CLASS, PREMIUM_CELL_CLASS } from '../components/leads/LeadTableHeader'
+import LeadTableHeader, { PREMIUM_HEADER_CLASS_DARK, PREMIUM_CELL_CLASS } from '../components/leads/LeadTableHeader'
 import {
   LeadActionsCell,
   LeadBudgetCell,
@@ -246,7 +246,7 @@ export default function Leads() {
     {
       key: 'client',
       label: 'Client',
-      headerClassName: PREMIUM_HEADER_CLASS,
+      headerClassName: PREMIUM_HEADER_CLASS_DARK,
       headerRender: () => <LeadTableHeader icon={User} label="Client" accent="teal" />,
       cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => <LeadClientCell client={row.clients} />,
@@ -254,7 +254,7 @@ export default function Leads() {
     {
       key: 'contact',
       label: 'Contact',
-      headerClassName: `${PREMIUM_HEADER_CLASS} hidden sm:table-cell`,
+      headerClassName: `${PREMIUM_HEADER_CLASS_DARK} hidden sm:table-cell`,
       headerRender: () => <LeadTableHeader icon={Mail} label="Contact" accent="sky" />,
       cellClassName: `${PREMIUM_CELL_CLASS} hidden sm:table-cell`,
       render: (row) => <LeadContactCell client={row.clients} />,
@@ -262,7 +262,7 @@ export default function Leads() {
     {
       key: 'destination',
       label: 'Destination',
-      headerClassName: PREMIUM_HEADER_CLASS,
+      headerClassName: PREMIUM_HEADER_CLASS_DARK,
       headerRender: () => <LeadTableHeader icon={MapPin} label="Destination" accent="gradient" />,
       cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => <LeadInquiryCell lead={row} />,
@@ -270,7 +270,7 @@ export default function Leads() {
     {
       key: 'travel_type',
       label: 'Type',
-      headerClassName: `${PREMIUM_HEADER_CLASS} hidden md:table-cell`,
+      headerClassName: `${PREMIUM_HEADER_CLASS_DARK} hidden md:table-cell`,
       headerRender: () => <LeadTableHeader icon={Tag} label="Type" accent="violet" />,
       cellClassName: `${PREMIUM_CELL_CLASS} hidden md:table-cell`,
       render: (row) => <LeadTravelTypeBadge travelType={row.travel_type} />,
@@ -278,7 +278,7 @@ export default function Leads() {
     {
       key: 'budget',
       label: 'Budget',
-      headerClassName: `${PREMIUM_HEADER_CLASS} hidden lg:table-cell`,
+      headerClassName: `${PREMIUM_HEADER_CLASS_DARK} hidden lg:table-cell`,
       headerRender: () => <LeadTableHeader icon={Wallet} label="Budget" accent="emerald" />,
       cellClassName: `${PREMIUM_CELL_CLASS} hidden lg:table-cell`,
       render: (row) => <LeadBudgetCell budget={row.budget} />,
@@ -286,7 +286,7 @@ export default function Leads() {
     {
       key: 'status',
       label: 'Status',
-      headerClassName: PREMIUM_HEADER_CLASS,
+      headerClassName: PREMIUM_HEADER_CLASS_DARK,
       headerRender: () => <LeadTableHeader icon={Flag} label="Status" accent="amber" />,
       cellClassName: PREMIUM_CELL_CLASS,
       render: (row) => <LeadStatusBadge status={row.status} />,
@@ -294,7 +294,7 @@ export default function Leads() {
     {
       key: 'follow_up_date',
       label: 'Follow-up',
-      headerClassName: `${PREMIUM_HEADER_CLASS} hidden lg:table-cell`,
+      headerClassName: `${PREMIUM_HEADER_CLASS_DARK} hidden lg:table-cell`,
       headerRender: () => <LeadTableHeader icon={Calendar} label="Follow-up" accent="rose" />,
       cellClassName: `${PREMIUM_CELL_CLASS} hidden lg:table-cell`,
       render: (row) => <LeadFollowUpCell followUpDate={row.follow_up_date} status={row.status} />,
@@ -302,7 +302,7 @@ export default function Leads() {
     {
       key: 'actions',
       label: 'Actions',
-      headerClassName: `${PREMIUM_HEADER_CLASS} w-16 sm:w-20`,
+      headerClassName: `${PREMIUM_HEADER_CLASS_DARK} w-16 sm:w-20`,
       headerRender: () => <LeadTableHeader icon={MoreHorizontal} label="Actions" accent="slate" />,
       cellClassName: `${PREMIUM_CELL_CLASS} w-16 sm:w-20`,
       render: (row) => (
@@ -423,6 +423,7 @@ export default function Leads() {
       ) : (
         <Table
           variant="premium"
+          headerTone="dark"
           columns={columns}
           data={leads}
           emptyMessage="No leads yet. Add one or wait for website enquiries."
