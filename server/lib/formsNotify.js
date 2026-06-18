@@ -40,7 +40,11 @@ function buildSummaryHtml({ form, response, questions, answers }) {
     return `<tr><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;vertical-align:top;">${escapeHtml(q.question_text)}</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#0f172a;">${escapeHtml(formatAnswerValue(q, ans))}</td></tr>`
   }).join('')
 
-  const crmUrl = process.env.VITE_APP_URL || process.env.CRM_URL || ''
+  const crmUrl =
+    process.env.VITE_APP_URL ||
+    process.env.CRM_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
+    ''
   const responsesLink = crmUrl ? `${crmUrl.replace(/\/$/, '')}/forms/${form.id}/responses` : null
 
   return `

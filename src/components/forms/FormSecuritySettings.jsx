@@ -60,7 +60,11 @@ export default function FormSecuritySettings({ form, onChange }) {
             notification_emails: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
           })
         }
+        placeholder="info@youragency.com, manager@youragency.com"
       />
+      <p className="text-xs text-slate-500">
+        You receive a summary email here when a traveler submits. If empty, we use the agency owner&apos;s login email.
+      </p>
       <Input
         label="Thank you message"
         value={settings.thank_you_message || ''}

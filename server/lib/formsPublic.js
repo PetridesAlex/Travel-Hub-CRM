@@ -54,6 +54,10 @@ export function assertRateLimit(req, token) {
   }
 }
 
+function isSharedSurveyLink(recipient) {
+  return !recipient.email && recipient.name === 'Shared survey link'
+}
+
 async function loadRecipient(admin, token) {
   const { data: recipient, error } = await admin
     .from('form_recipients')
@@ -303,15 +307,24 @@ export async function submitForm(token, body, req) {
   }
 
   const completedAt = new Date().toISOString()
-  const recipientUpdate = {
-    completed_at: completedAt,
-    status: 'completed',
+  const sharedLink = isSharedSurveyLink(recipient)
+  const singleUse = form.security_mode === 'link_single_use'
+
+  if (singleUse || !sharedLink) {
+    await admin.from('form_recipients').update({
+      completed_at: completedAt,
+      status: 'completed',
+    }).eq('id', recipient.id)
+  } else {
+    await admin.from('form_recipients').update({
+      opened_at: recipient.opened_at || completedAt,
+      status: 'opened',
+    }).eq('id', recipient.id)
   }
 
-  await admin.from('form_recipients').update(recipientUpdate).eq('id', recipient.id)
-
+  let notifyResult = { ok: false }
   try {
-    await notifyFormSubmission(admin, {
+    notifyResult = await notifyFormSubmission(admin, {
       form,
       response,
       questions,
@@ -325,7 +338,8 @@ export async function submitForm(token, body, req) {
   return {
     ok: true,
     thank_you: form.settings?.thank_you_message || 'Thank you for your response!',
-    single_use: form.security_mode === 'link_single_use',
+    single_use: singleUse,
+    notification_sent: notifyResult?.ok === true,
   }
 }
 

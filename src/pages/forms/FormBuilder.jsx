@@ -340,8 +340,10 @@ export default function FormBuilder() {
         </div>
       )}
 
-      {tab === 'distribute' && formRecord && (
-        <FormDistributePanel form={formRecord} agencyId={formRecord.agency_id} />
+      {tab === 'distribute' && formRecord ? (
+        <FormDistributePanel form={{ ...formRecord, settings: meta.settings }} agencyId={formRecord.agency_id} />
+      ) : tab === 'distribute' && (
+        <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">Save the form first, then use the Distribute tab to send links.</p>
       )}
     </div>
   )

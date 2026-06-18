@@ -52,18 +52,20 @@ export async function createRecipientsBulk(formId, userId, agencyId, recipients)
   return data || []
 }
 
+export const SHARED_LINK_NAME = 'Shared survey link'
+
 export async function ensureGenericRecipient(formId, agencyId) {
   const { data: existing } = await supabase
     .from('form_recipients')
     .select('*')
     .eq('form_id', formId)
+    .eq('name', SHARED_LINK_NAME)
     .is('email', null)
-    .is('name', null)
     .limit(1)
     .maybeSingle()
 
   if (existing) return existing
-  return createRecipient(formId, agencyId, { name: 'Public link' })
+  return createRecipient(formId, agencyId, { name: SHARED_LINK_NAME })
 }
 
 export async function markRecipientSent(id) {
