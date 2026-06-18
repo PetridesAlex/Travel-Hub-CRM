@@ -9,6 +9,7 @@
     "dev:api:restart": "lsof -ti :3000 | xargs kill -9 2>/dev/null; node scripts/dev-api.mjs",
     "build": "vite build",
     "lint": "eslint .",
+    "test:forms": "node scripts/test-forms-import.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

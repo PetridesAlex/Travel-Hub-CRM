@@ -15,13 +15,17 @@ import {
   publishForm,
   reorderItems,
 } from '../../services/forms'
+import { applyImportedForm } from '../../services/formAiImport'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import FormBuilderCanvas from '../../components/forms/FormBuilderCanvas'
 import FormSecuritySettings from '../../components/forms/FormSecuritySettings'
 import FormDistributePanel from '../../components/forms/FormDistributePanel'
+import FormAiImportPanel from '../../components/forms/FormAiImportPanel'
+import FormBrandingEditor from '../../components/forms/FormBrandingEditor'
 import QuestionRenderer from '../../components/forms/QuestionRenderer'
+import FormShell, { FormTitleCard, FormQuestionCard, getFormBranding } from '../../components/forms/FormShell'
 import { FORM_CATEGORIES } from '../../constants/formFields'
 
 const emptyMeta = {
@@ -30,12 +34,12 @@ const emptyMeta = {
   category: 'custom',
   security_mode: 'link_only',
   gate_config: {},
-  settings: {},
+  settings: { brand_color: '#b71c1c', use_agency_logo: true },
 }
 
 export default function FormBuilder() {
   const { formId } = useParams()
-  const isNew = formId === 'new' || !formId
+  const isNew = !formId || formId === 'new'
   const navigate = useNavigate()
   const { user } = useAuth()
   const { agency } = useAgency()
@@ -44,7 +48,7 @@ export default function FormBuilder() {
   const [sections, setSections] = useState([])
   const [questions, setQuestions] = useState([])
   const [formRecord, setFormRecord] = useState(null)
-  const [tab, setTab] = useState('build')
+  const [tab, setTab] = useState(isNew ? 'import' : 'build')
   const [previewAnswers, setPreviewAnswers] = useState({})
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
@@ -62,7 +66,7 @@ export default function FormBuilder() {
           category: form.category,
           security_mode: form.security_mode,
           gate_config: form.gate_config || {},
-          settings: form.settings || {},
+          settings: { ...emptyMeta.settings, ...(form.settings || {}) },
         })
         setSections(s)
         setQuestions(q)
@@ -89,9 +93,7 @@ export default function FormBuilder() {
       sort_order: index,
     }))
     if (orderedSections.length) {
-      await Promise.all(
-        orderedSections.map((s) => supabaseUpdateSectionOrder(s)),
-      )
+      await Promise.all(orderedSections.map((s) => updateSection(s.id, { sort_order: s.sort_order })))
     }
 
     for (const q of questions) {
@@ -125,10 +127,6 @@ export default function FormBuilder() {
     }
   }
 
-  async function supabaseUpdateSectionOrder({ id, sort_order }) {
-    return updateSection(id, { sort_order })
-  }
-
   const handleSave = async () => {
     if (!meta.title.trim()) {
       setError('Title is required')
@@ -140,7 +138,7 @@ export default function FormBuilder() {
       let fid = formRecord?.id
       let agencyId = formRecord?.agency_id || agency?.id
 
-      if (isNew) {
+      if (isNew && !fid) {
         const created = await createForm(meta, user.id, agency?.id)
         fid = created.id
         agencyId = created.agency_id
@@ -155,6 +153,7 @@ export default function FormBuilder() {
       const refreshed = await getFormWithStructure(fid)
       setSections(refreshed.sections)
       setQuestions(refreshed.questions)
+      setFormRecord(refreshed.form)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -166,9 +165,21 @@ export default function FormBuilder() {
     setSaving(true)
     setError('')
     try {
-      await handleSave()
-      const fid = formRecord?.id
-      if (!fid) return
+      if (!meta.title.trim()) {
+        setError('Title is required')
+        return
+      }
+      let fid = formRecord?.id
+      if (!fid) {
+        const created = await createForm(meta, user.id, agency?.id)
+        fid = created.id
+        setFormRecord(created)
+        navigate(`/forms/${fid}/edit`, { replace: true })
+        await persistStructure(fid, created.agency_id)
+      } else {
+        await updateForm(fid, meta)
+        await persistStructure(fid, formRecord.agency_id)
+      }
       await publishForm(fid)
       const refreshed = await getFormWithStructure(fid)
       setFormRecord(refreshed.form)
@@ -178,6 +189,12 @@ export default function FormBuilder() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleImport = (imported) => {
+    const count = applyImportedForm(imported, { setMeta, setQuestions })
+    setTab('build')
+    return count
   }
 
   const addSection = () => {
@@ -215,6 +232,8 @@ export default function FormBuilder() {
   }
 
   const sortedQuestions = [...questions].sort((a, b) => a.sort_order - b.sort_order)
+  const branding = getFormBranding(meta, agency)
+  const tabs = ['import', 'build', 'branding', 'security', 'preview', 'distribute']
 
   return (
     <div className="space-y-6">
@@ -242,7 +261,7 @@ export default function FormBuilder() {
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
       <div className="flex flex-wrap gap-2">
-        {['build', 'security', 'preview', 'distribute'].map((t) => (
+        {tabs.map((t) => (
           <button
             key={t}
             type="button"
@@ -251,10 +270,12 @@ export default function FormBuilder() {
               tab === t ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:ring-teal-200'
             }`}
           >
-            {t === 'build' ? 'Builder' : t}
+            {t === 'build' ? 'Builder' : t === 'import' ? 'AI Import' : t}
           </button>
         ))}
       </div>
+
+      {tab === 'import' && <FormAiImportPanel onImport={handleImport} />}
 
       {tab === 'build' && (
         <div className="space-y-4">
@@ -267,10 +288,13 @@ export default function FormBuilder() {
               options={FORM_CATEGORIES}
             />
             <div className="sm:col-span-2">
-              <Input
-                label="Description"
+              <label className="mb-1 block text-sm font-medium text-slate-700">Description</label>
+              <textarea
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                rows={3}
                 value={meta.description}
                 onChange={(e) => setMeta({ ...meta, description: e.target.value })}
+                placeholder="Your opinion matters! Please take a few minutes to share your feedback…"
               />
             </div>
           </div>
@@ -285,25 +309,34 @@ export default function FormBuilder() {
         </div>
       )}
 
+      {tab === 'branding' && (
+        <FormBrandingEditor form={meta} agency={agency} onChange={(patch) => setMeta({ ...meta, ...patch })} />
+      )}
+
       {tab === 'security' && (
         <FormSecuritySettings form={meta} onChange={(patch) => setMeta({ ...meta, ...patch })} />
       )}
 
       {tab === 'preview' && (
-        <div className="mx-auto max-w-2xl space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6">
-          <h2 className="text-xl font-bold text-slate-900">{meta.title || 'Untitled form'}</h2>
-          {meta.description && <p className="text-slate-600">{meta.description}</p>}
-          {sortedQuestions.map((q) => (
-            <QuestionRenderer
-              key={q.id}
-              question={q}
-              value={previewAnswers[q.id]}
-              onChange={(val) => setPreviewAnswers({ ...previewAnswers, [q.id]: val })}
-            />
-          ))}
-          <Button type="button" variant="secondary" disabled>
-            <Eye className="h-4 w-4" /> Preview only
-          </Button>
+        <div style={{ '--form-brand': branding.brandColor }}>
+          <FormShell form={meta} agency={agency}>
+            <FormTitleCard title={meta.title || 'Untitled form'} description={meta.description} branding={branding} />
+            {sortedQuestions.map((q) => (
+              <FormQuestionCard key={q.id} question={q} branding={branding}>
+                <QuestionRenderer
+                  question={q}
+                  variant="card"
+                  value={previewAnswers[q.id]}
+                  onChange={(val) => setPreviewAnswers({ ...previewAnswers, [q.id]: val })}
+                />
+              </FormQuestionCard>
+            ))}
+            <div className="rounded-xl bg-white px-6 py-4 text-center shadow-sm">
+              <Button type="button" variant="secondary" disabled>
+                <Eye className="h-4 w-4" /> Preview only
+              </Button>
+            </div>
+          </FormShell>
         </div>
       )}
 

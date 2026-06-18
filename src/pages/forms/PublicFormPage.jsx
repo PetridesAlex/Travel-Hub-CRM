@@ -9,6 +9,7 @@ import {
   uploadFormFile,
 } from '../../services/formsPublicApi'
 import QuestionRenderer from '../../components/forms/QuestionRenderer'
+import FormShell, { FormTitleCard, FormQuestionCard, getFormBranding } from '../../components/forms/FormShell'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 
@@ -57,7 +58,9 @@ export default function PublicFormPage() {
     setError('')
     try {
       const payload = {
-        answers: Object.entries(answers).map(([question_id, value]) => ({ question_id, value })),
+        answers: Object.entries(answers)
+          .filter(([k]) => !k.startsWith('_'))
+          .map(([question_id, value]) => ({ question_id, value })),
         respondent_name: answers._name || formData?.recipient?.name,
         respondent_email: answers._email || formData?.recipient?.email,
         gate: gateForm,
@@ -74,16 +77,16 @@ export default function PublicFormPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-teal-50/30">
-        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#f0ebe3' }}>
+        <Loader2 className="h-8 w-8 animate-spin text-slate-600" />
       </div>
     )
   }
 
   if (error && !formData) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-rose-50/30 p-6">
-        <div className="max-w-md rounded-2xl border border-rose-200 bg-white p-8 text-center shadow-lg">
+      <div className="flex min-h-screen items-center justify-center p-6" style={{ backgroundColor: '#f0ebe3' }}>
+        <div className="max-w-md rounded-xl border border-rose-200 bg-white p-8 text-center shadow-lg">
           <ShieldAlert className="mx-auto h-10 w-10 text-rose-500" />
           <h1 className="mt-4 text-lg font-semibold text-slate-900">Form unavailable</h1>
           <p className="mt-2 text-sm text-slate-600">{error}</p>
@@ -94,9 +97,9 @@ export default function PublicFormPage() {
 
   if (submitted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-teal-50/30 p-6">
-        <div className="max-w-md rounded-2xl border border-teal-200 bg-white p-8 text-center shadow-lg">
-          <CheckCircle2 className="mx-auto h-12 w-12 text-teal-600" />
+      <div className="flex min-h-screen items-center justify-center p-6" style={{ backgroundColor: '#f0ebe3' }}>
+        <div className="max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-lg">
+          <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
           <h1 className="mt-4 text-xl font-bold text-slate-900">Thank you!</h1>
           <p className="mt-2 text-slate-600">{thankYou}</p>
         </div>
@@ -104,15 +107,16 @@ export default function PublicFormPage() {
     )
   }
 
-  const { form, questions = [], sections = [] } = formData || {}
+  const { form, questions = [] } = formData || {}
   const sortedQuestions = [...questions].sort((a, b) => a.sort_order - b.sort_order)
   const gateConfig = form?.gate_config || {}
+  const branding = getFormBranding(form)
 
   if (!gatePassed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-teal-50/30 p-6">
-        <form onSubmit={handleVerifyGate} className="w-full max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
-          <div className="flex items-center gap-2 text-teal-700">
+      <div className="flex min-h-screen items-center justify-center p-6" style={{ backgroundColor: '#f0ebe3' }}>
+        <form onSubmit={handleVerifyGate} className="w-full max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-8 shadow-lg">
+          <div className="flex items-center gap-2 text-slate-800">
             <Lock className="h-5 w-5" />
             <h1 className="text-lg font-semibold">Verify access</h1>
           </div>
@@ -133,58 +137,35 @@ export default function PublicFormPage() {
     )
   }
 
-  const questionsBySection = (sectionId) =>
-    sortedQuestions.filter((q) => q.section_id === sectionId)
-
-  const unsectioned = sortedQuestions.filter((q) => !q.section_id)
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/20 py-10 px-4">
-      <form onSubmit={handleSubmit} className="mx-auto max-w-2xl space-y-6 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xl sm:p-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{form?.title}</h1>
-          {form?.description && <p className="mt-2 text-slate-600">{form.description}</p>}
-        </div>
+    <div style={{ '--form-brand': branding.brandColor }}>
+      <FormShell form={form}>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <FormTitleCard title={form?.title} description={form?.description} branding={branding} />
 
-        {sections.map((section) => {
-          const sectionQs = questionsBySection(section.id)
-          if (!sectionQs.length) return null
-          return (
-            <div key={section.id} className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-800">{section.title}</h2>
-                {section.description && <p className="text-sm text-slate-500">{section.description}</p>}
-              </div>
-              {sectionQs.map((q) => (
-                <QuestionRenderer
-                  key={q.id}
-                  question={q}
-                  value={answers[q.id]}
-                  onChange={(val) => setAnswers({ ...answers, [q.id]: val })}
-                  onFileSelect={(file) => uploadFormFile(token, { questionId: q.id, file })}
-                />
-              ))}
-            </div>
-          )
-        })}
+          {sortedQuestions.map((q) => (
+            <FormQuestionCard key={q.id} question={q} branding={branding}>
+              <QuestionRenderer
+                question={q}
+                variant="card"
+                value={answers[q.id]}
+                onChange={(val) => setAnswers({ ...answers, [q.id]: val })}
+                onFileSelect={(file) => uploadFormFile(token, { questionId: q.id, file })}
+              />
+            </FormQuestionCard>
+          ))}
 
-        {unsectioned.map((q) => (
-          <QuestionRenderer
-            key={q.id}
-            question={q}
-            value={answers[q.id]}
-            onChange={(val) => setAnswers({ ...answers, [q.id]: val })}
-            onFileSelect={(file) => uploadFormFile(token, { questionId: q.id, file })}
-          />
-        ))}
+          {error && (
+            <p className="rounded-lg bg-rose-50 px-4 py-2 text-sm text-rose-700">{error}</p>
+          )}
 
-        {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
-
-        <Button type="submit" disabled={submitting} className="w-full">
-          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Submit
-        </Button>
-      </form>
+          <div className="rounded-xl bg-white px-6 py-5 shadow-[0_1px_3px_rgba(60,64,67,0.15)]">
+            <Button type="submit" disabled={submitting} className="min-w-[120px]">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit'}
+            </Button>
+          </div>
+        </form>
+      </FormShell>
     </div>
   )
 }

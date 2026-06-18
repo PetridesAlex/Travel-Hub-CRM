@@ -1,4 +1,4 @@
-import { Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { Trash2, ChevronUp, ChevronDown, Upload } from 'lucide-react'
 import Input from '../ui/Input'
 import Select from '../ui/Select'
 import { QUESTION_TYPES } from '../../constants/formFields'
@@ -8,6 +8,15 @@ export default function QuestionEditor({ question, onChange, onDelete, onMoveUp,
 
   const optionsText = Array.isArray(question.options) ? question.options.join('\n') : ''
   const needsOptions = ['dropdown', 'radio', 'checkbox'].includes(question.question_type)
+  const imageUrl = question.config?.image_url || ''
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => update({ config: { ...question.config, image_url: reader.result } })
+    reader.readAsDataURL(file)
+  }
 
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
@@ -40,6 +49,24 @@ export default function QuestionEditor({ question, onChange, onDelete, onMoveUp,
             value={question.help_text || ''}
             onChange={(e) => update({ help_text: e.target.value })}
           />
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Question image (optional)</label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={imageUrl?.startsWith('data:') ? '' : imageUrl}
+                onChange={(e) => update({ config: { ...question.config, image_url: e.target.value || null } })}
+                placeholder="https://... hotel or destination photo"
+                className="flex-1"
+              />
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                <Upload className="h-3.5 w-3.5" /> Upload
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              </label>
+            </div>
+            {imageUrl && (
+              <img src={imageUrl} alt="" className="mt-2 h-28 w-full rounded-lg object-cover" />
+            )}
+          </div>
           {needsOptions && (
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Options (one per line)</label>

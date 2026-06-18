@@ -2,6 +2,7 @@ import { verifySession } from '../../server/lib/verifySession.js'
 import { isOpenAiConfigured, createOpenAiResponse } from '../../server/lib/openaiService.js'
 import { AI_ASSIST_TASKS, buildAssistPrompt } from '../../server/lib/aiAssistPrompts.js'
 import { buildCalendarAssistPrompt } from '../../server/lib/calendarAssistPrompt.js'
+import { parseAiFormJson } from '../../server/lib/formImportParse.js'
 
 function isCalendarAssistRoute(req) {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
@@ -94,6 +95,15 @@ export default async function handler(req, res) {
       input,
       temperature: promptConfig.temperature,
     })
+
+    if (task === 'form_import') {
+      try {
+        const form = parseAiFormJson(text)
+        return res.status(200).json({ form, task, model: raw?.model || undefined })
+      } catch (parseErr) {
+        return res.status(422).json({ error: parseErr.message || 'Could not parse AI form output.' })
+      }
+    }
 
     return res.status(200).json({
       output: text,
