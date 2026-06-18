@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Search, Download } from 'lucide-react'
+import {
+  Plus, Pencil, Trash2, Search, Download, Sparkles, Loader2, SlidersHorizontal,
+  FileText, User, Plane, Calendar, CalendarClock, Wallet, Flag, MoreHorizontal,
+  Mail, AlertTriangle, Ban, Receipt,
+} from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
 import { getInvoices, createInvoice, updateInvoice, deleteInvoice } from '../services/invoices'
@@ -7,6 +11,7 @@ import { getClients } from '../services/clients'
 import { getBookings } from '../services/bookings'
 import { getQuotations } from '../services/quotations'
 import Button from '../components/ui/Button'
+import Table from '../components/ui/Table'
 import Modal, { ModalFooter } from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
@@ -14,6 +19,7 @@ import Badge from '../components/ui/Badge'
 import { INVOICE_STATUSES, INVOICE_SERVICE_TYPES } from '../constants/enums'
 import { formatCurrency, formatDate, formatClientName, formatClientOptionLabel, labelFor, getTodayISO } from '../utils/format'
 import { exportInvoicePdf } from '../utils/exportPdf'
+import LeadTableHeader, { PREMIUM_HEADER_CLASS, PREMIUM_CELL_CLASS } from '../components/leads/LeadTableHeader'
 
 const emptyForm = {
   invoice_number: '',
@@ -33,6 +39,67 @@ const emptyForm = {
 
 const INVOICE_FORM_ID = 'invoice-form'
 
+const STATUS_ICONS = {
+  draft: FileText,
+  sent: Mail,
+  paid: Wallet,
+  overdue: AlertTriangle,
+  cancelled: Ban,
+}
+
+const STATUS_TAB_STYLES = {
+  '': {
+    activeClass: 'border-violet-200/90 bg-gradient-to-br from-violet-50 via-white to-indigo-50/40 text-violet-900 shadow-md shadow-violet-900/5 ring-1 ring-violet-500/15',
+    iconActive: 'bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md shadow-violet-900/20',
+    countActive: 'bg-violet-600 text-white shadow-sm',
+    accent: 'from-violet-400 to-indigo-500',
+  },
+  draft: {
+    activeClass: 'border-slate-200/90 bg-gradient-to-br from-slate-50 via-white to-slate-100/50 text-slate-900 shadow-md shadow-slate-900/5 ring-1 ring-slate-400/15',
+    iconActive: 'bg-gradient-to-br from-slate-500 to-slate-700 text-white shadow-md shadow-slate-900/20',
+    countActive: 'bg-slate-600 text-white shadow-sm',
+    accent: 'from-slate-400 to-slate-600',
+  },
+  sent: {
+    activeClass: 'border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-blue-50/30 text-sky-900 shadow-md shadow-sky-900/5 ring-1 ring-sky-500/15',
+    iconActive: 'bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-md shadow-sky-900/20',
+    countActive: 'bg-sky-600 text-white shadow-sm',
+    accent: 'from-sky-400 to-blue-500',
+  },
+  paid: {
+    activeClass: 'border-emerald-200/90 bg-gradient-to-br from-emerald-50 via-white to-teal-50/30 text-emerald-900 shadow-md shadow-emerald-900/5 ring-1 ring-emerald-500/15',
+    iconActive: 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-900/20',
+    countActive: 'bg-emerald-600 text-white shadow-sm',
+    accent: 'from-emerald-400 to-teal-500',
+  },
+  overdue: {
+    activeClass: 'border-rose-200/90 bg-gradient-to-br from-rose-50 via-white to-red-50/30 text-rose-900 shadow-md shadow-rose-900/5 ring-1 ring-rose-500/15',
+    iconActive: 'bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-md shadow-rose-900/20',
+    countActive: 'bg-rose-600 text-white shadow-sm',
+    accent: 'from-rose-400 to-red-500',
+  },
+  cancelled: {
+    activeClass: 'border-slate-200/90 bg-gradient-to-br from-slate-100 via-white to-slate-50 text-slate-700 shadow-md shadow-slate-900/5 ring-1 ring-slate-300/15',
+    iconActive: 'bg-gradient-to-br from-slate-400 to-slate-600 text-white shadow-md shadow-slate-900/20',
+    countActive: 'bg-slate-500 text-white shadow-sm',
+    accent: 'from-slate-300 to-slate-500',
+  },
+}
+
+const SERVICE_STYLES = {
+  flight: 'border-sky-200/80 bg-sky-50 text-sky-800',
+  hotel: 'border-violet-200/80 bg-violet-50 text-violet-800',
+  ferry: 'border-blue-200/80 bg-blue-50 text-blue-800',
+  car_rental: 'border-amber-200/80 bg-amber-50 text-amber-800',
+  travel_insurance: 'border-emerald-200/80 bg-emerald-50 text-emerald-800',
+  cruise: 'border-indigo-200/80 bg-indigo-50 text-indigo-800',
+  travel_package: 'border-teal-200/80 bg-teal-50 text-teal-800',
+  other: 'border-slate-200/80 bg-slate-50 text-slate-700',
+}
+
+const fieldClass =
+  'w-full appearance-none rounded-xl border border-slate-200/80 bg-white py-2.5 text-sm font-medium text-slate-800 shadow-sm transition hover:border-violet-200 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20'
+
 function getSaveErrorMessage(err) {
   const msg = err?.message || ''
   if (msg.includes('service_type')) {
@@ -51,10 +118,51 @@ function generateInvoiceNumber() {
   return `INV-${stamp}-${suffix}`
 }
 
+function getStatusTabStyle(statusId) {
+  return STATUS_TAB_STYLES[statusId] || STATUS_TAB_STYLES['']
+}
+
+function ServiceTypeBadge({ type }) {
+  if (!type) return <span className="text-slate-400">—</span>
+  const label = labelFor(INVOICE_SERVICE_TYPES, type)
+  const style = SERVICE_STYLES[type] || SERVICE_STYLES.other
+  return (
+    <span className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold ${style}`}>
+      {label}
+    </span>
+  )
+}
+
+function InvoicesEmptyState({ statusFilter, onAdd }) {
+  const statusLabel = statusFilter ? labelFor(INVOICE_STATUSES, statusFilter) : null
+  const Icon = statusFilter ? (STATUS_ICONS[statusFilter] || FileText) : Receipt
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-dashed border-violet-200/80 bg-gradient-to-b from-violet-50/60 via-white to-indigo-50/40 px-6 py-16 text-center shadow-[0_8px_30px_-20px_rgba(15,23,42,0.15)]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/50 to-transparent" />
+      <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-900/25 ring-4 ring-white">
+        <Icon className="h-8 w-8" />
+      </div>
+      <h3 className="text-lg font-bold tracking-tight text-slate-900">
+        {statusLabel ? `No ${statusLabel.toLowerCase()} invoices` : 'Start billing your clients'}
+      </h3>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">
+        {statusLabel
+          ? `No invoices with status "${statusLabel}" yet. Create one or adjust your filters.`
+          : 'Create professional invoices linked to bookings and quotations — track outstanding balances and payments.'}
+      </p>
+      <Button onClick={onAdd} className="mt-6 shadow-lg shadow-violet-900/20">
+        <Plus className="h-4 w-4" />
+        Create first invoice
+      </Button>
+    </div>
+  )
+}
+
 export default function Invoices() {
   const { user } = useAuth()
   const { agency } = useAgency()
-  const [invoices, setInvoices] = useState([])
+  const [allInvoices, setAllInvoices] = useState([])
   const [clients, setClients] = useState([])
   const [bookings, setBookings] = useState([])
   const [quotations, setQuotations] = useState([])
@@ -89,7 +197,7 @@ export default function Invoices() {
   async function loadData() {
     setLoading(true)
     const results = await Promise.allSettled([
-      getInvoices(search, statusFilter, serviceFilter),
+      getInvoices(),
       getClients(),
       getBookings(),
       getQuotations(),
@@ -98,70 +206,73 @@ export default function Invoices() {
     const [invoicesResult, clientsResult, bookingsResult, quotesResult] = results
 
     if (invoicesResult.status === 'fulfilled') {
-      setInvoices(invoicesResult.value)
+      setAllInvoices(invoicesResult.value)
       setListError('')
     } else {
       console.error('Failed to load invoices:', invoicesResult.reason)
-      setInvoices([])
+      setAllInvoices([])
       setListError(getSaveErrorMessage(invoicesResult.reason))
     }
 
-    if (clientsResult.status === 'fulfilled') {
-      setClients(clientsResult.value)
-    } else {
-      console.error('Failed to load clients:', clientsResult.reason)
-      setClients([])
-    }
-
-    if (bookingsResult.status === 'fulfilled') {
-      setBookings(bookingsResult.value)
-    } else {
-      console.error('Failed to load bookings:', bookingsResult.reason)
-      setBookings([])
-    }
-
-    if (quotesResult.status === 'fulfilled') {
-      setQuotations(quotesResult.value)
-    } else {
-      console.error('Failed to load quotations:', quotesResult.reason)
-      setQuotations([])
-    }
+    if (clientsResult.status === 'fulfilled') setClients(clientsResult.value)
+    if (bookingsResult.status === 'fulfilled') setBookings(bookingsResult.value)
+    if (quotesResult.status === 'fulfilled') setQuotations(quotesResult.value)
 
     setLoading(false)
   }
 
   async function refreshInvoices() {
-    const data = await getInvoices('', '', '')
-    setInvoices(data)
+    const data = await getInvoices()
+    setAllInvoices(data)
     setListError('')
     return data
   }
 
-  async function applyFilters() {
-    setLoading(true)
-    setSaveSuccess('')
-    try {
-      const data = await getInvoices(search, statusFilter, serviceFilter)
-      setInvoices(data)
-      setListError('')
-    } catch (err) {
-      console.error(err)
-      setListError(getSaveErrorMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }
+  const statusCounts = useMemo(() => {
+    const counts = { all: allInvoices.length }
+    INVOICE_STATUSES.forEach((s) => {
+      counts[s.value] = allInvoices.filter((inv) => inv.status === s.value).length
+    })
+    return counts
+  }, [allInvoices])
 
   const stats = useMemo(() => {
-    const outstanding = invoices
+    const outstanding = allInvoices
       .filter((inv) => ['draft', 'sent', 'overdue'].includes(inv.status))
       .reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0)
-    const paid = invoices
+    const paid = allInvoices
       .filter((inv) => inv.status === 'paid')
       .reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0)
-    const overdueCount = invoices.filter((inv) => inv.status === 'overdue').length
-    return { outstanding, paid, overdueCount, total: invoices.length }
-  }, [invoices])
+    const overdueCount = allInvoices.filter((inv) => inv.status === 'overdue').length
+    return { outstanding, paid, overdueCount, total: allInvoices.length }
+  }, [allInvoices])
+
+  const invoices = useMemo(() => {
+    let result = statusFilter
+      ? allInvoices.filter((inv) => inv.status === statusFilter)
+      : allInvoices
+
+    if (serviceFilter) {
+      result = result.filter((inv) => inv.service_type === serviceFilter)
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter((inv) =>
+        inv.invoice_number?.toLowerCase().includes(q)
+        || inv.description?.toLowerCase().includes(q)
+        || inv.notes?.toLowerCase().includes(q)
+        || formatClientName(inv.clients).toLowerCase().includes(q),
+      )
+    }
+
+    return result
+  }, [allInvoices, statusFilter, serviceFilter, search])
+
+  const statusTabs = [
+    { id: '', label: 'All', icon: Receipt },
+    ...INVOICE_STATUSES.map((s) => ({ id: s.value, label: s.label, icon: STATUS_ICONS[s.value] || FileText })),
+  ]
 
   function openAdd() {
     setEditing(null)
@@ -238,12 +349,8 @@ export default function Invoices() {
 
   function validateForm() {
     const errors = {}
-    if (!form.invoice_number.trim()) {
-      errors.invoice_number = 'Invoice number is required'
-    }
-    if (!form.service_type) {
-      errors.service_type = 'Please select a service type'
-    }
+    if (!form.invoice_number.trim()) errors.invoice_number = 'Invoice number is required'
+    if (!form.service_type) errors.service_type = 'Please select a service type'
     return errors
   }
 
@@ -287,10 +394,7 @@ export default function Invoices() {
         ? await updateInvoice(editing.id, payload)
         : await createInvoice(payload, user.id, agency?.id)
 
-      setSearch('')
-      setStatusFilter('')
-      setServiceFilter('')
-      setInvoices((prev) => {
+      setAllInvoices((prev) => {
         const withoutDuplicate = prev.filter((inv) => inv.id !== saved.id)
         return [saved, ...withoutDuplicate]
       })
@@ -335,45 +439,103 @@ export default function Invoices() {
   )
 
   const clientOptions = [
-    {
-      value: '',
-      label: sortedClients.length ? 'Select client' : 'No clients found — add one in Clients',
-    },
+    { value: '', label: sortedClients.length ? 'Select client' : 'No clients found — add one in Clients' },
     ...sortedClients.map((c) => ({ value: c.id, label: formatClientOptionLabel(c) })),
   ]
   const bookingOptions = [{ value: '', label: 'No booking' }, ...bookings.map((b) => ({ value: b.id, label: b.booking_reference || b.id.slice(0, 8) }))]
   const quoteOptions = [{ value: '', label: 'No quotation' }, ...quotations.map((q) => ({ value: q.id, label: q.title }))]
-  const statusOptions = [{ value: '', label: 'All statuses' }, ...INVOICE_STATUSES]
   const serviceOptions = [{ value: '', label: 'All services' }, ...INVOICE_SERVICE_TYPES]
   const serviceFormOptions = [{ value: '', label: 'Select service' }, ...INVOICE_SERVICE_TYPES]
   const estimatedTotal = (Number(form.amount) || 0) + (Number(form.tax_amount) || 0)
+  const activeTabStyle = getStatusTabStyle(statusFilter)
 
   const columns = [
-    { key: 'invoice_number', label: 'Invoice #', render: (row) => <span className="font-medium text-slate-900">{row.invoice_number}</span> },
-    { key: 'client', label: 'Client', render: (row) => formatClientName(row.clients) },
+    {
+      key: 'invoice_number',
+      label: 'Invoice #',
+      headerClassName: PREMIUM_HEADER_CLASS,
+      headerRender: () => <LeadTableHeader icon={FileText} label="Invoice" accent="gradient" surface="light" />,
+      cellClassName: PREMIUM_CELL_CLASS,
+      render: (row) => (
+        <span className="inline-flex items-center gap-2 font-semibold tracking-tight text-slate-900">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-100 to-indigo-100 text-violet-700 ring-1 ring-violet-200/60">
+            <FileText className="h-3.5 w-3.5" />
+          </span>
+          {row.invoice_number}
+        </span>
+      ),
+    },
+    {
+      key: 'client',
+      label: 'Client',
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden sm:table-cell`,
+      headerRender: () => <LeadTableHeader icon={User} label="Client" accent="teal" surface="light" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden sm:table-cell`,
+      render: (row) => <span className="font-medium text-slate-800">{formatClientName(row.clients)}</span>,
+    },
     {
       key: 'service_type',
       label: 'Service',
-      render: (row) => row.service_type
-        ? labelFor(INVOICE_SERVICE_TYPES, row.service_type)
-        : '—',
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden md:table-cell`,
+      headerRender: () => <LeadTableHeader icon={Plane} label="Service" accent="sky" surface="light" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden md:table-cell`,
+      render: (row) => <ServiceTypeBadge type={row.service_type} />,
     },
-    { key: 'issue_date', label: 'Issued', render: (row) => formatDate(row.issue_date) },
-    { key: 'due_date', label: 'Due', render: (row) => formatDate(row.due_date) },
-    { key: 'total_amount', label: 'Total', render: (row) => formatCurrency(row.total_amount, row.currency) },
-    { key: 'status', label: 'Status', render: (row) => <Badge status={row.status} label={labelFor(INVOICE_STATUSES, row.status)} /> },
+    {
+      key: 'issue_date',
+      label: 'Issued',
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden lg:table-cell`,
+      headerRender: () => <LeadTableHeader icon={Calendar} label="Issued" accent="amber" surface="light" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden lg:table-cell`,
+      render: (row) => <span className="text-sm text-slate-600">{formatDate(row.issue_date)}</span>,
+    },
+    {
+      key: 'due_date',
+      label: 'Due',
+      headerClassName: PREMIUM_HEADER_CLASS,
+      headerRender: () => <LeadTableHeader icon={CalendarClock} label="Due" accent="rose" surface="light" />,
+      cellClassName: PREMIUM_CELL_CLASS,
+      render: (row) => (
+        <span className={`text-sm font-medium ${row.status === 'overdue' ? 'text-rose-700' : 'text-slate-600'}`}>
+          {formatDate(row.due_date)}
+        </span>
+      ),
+    },
+    {
+      key: 'total_amount',
+      label: 'Total',
+      headerClassName: PREMIUM_HEADER_CLASS,
+      headerRender: () => <LeadTableHeader icon={Wallet} label="Total" accent="emerald" surface="light" />,
+      cellClassName: PREMIUM_CELL_CLASS,
+      render: (row) => (
+        <span className="text-base font-bold tabular-nums tracking-tight text-slate-900 sm:text-sm">
+          {formatCurrency(row.total_amount, row.currency)}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      headerClassName: `${PREMIUM_HEADER_CLASS} hidden sm:table-cell`,
+      headerRender: () => <LeadTableHeader icon={Flag} label="Status" accent="violet" surface="light" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} hidden sm:table-cell`,
+      render: (row) => <Badge status={row.status} label={labelFor(INVOICE_STATUSES, row.status)} />,
+    },
     {
       key: 'actions',
       label: 'Actions',
+      headerClassName: `${PREMIUM_HEADER_CLASS} w-[1%] whitespace-nowrap`,
+      headerRender: () => <LeadTableHeader icon={MoreHorizontal} label="Actions" accent="slate" surface="light" />,
+      cellClassName: `${PREMIUM_CELL_CLASS} w-[1%] whitespace-nowrap`,
       render: (row) => (
-        <div className="flex gap-2">
-          <button onClick={() => handleExportPdf(row)} className="text-slate-400 hover:text-teal-600" title="Download PDF">
+        <div className="flex gap-1">
+          <button type="button" onClick={() => handleExportPdf(row)} className="rounded-lg border border-transparent p-2 text-slate-400 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700" title="Download PDF">
             <Download className="h-4 w-4" />
           </button>
-          <button onClick={() => openEdit(row)} className="text-slate-400 hover:text-teal-600" title="Edit">
+          <button type="button" onClick={() => openEdit(row)} className="rounded-lg border border-transparent p-2 text-slate-400 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700" title="Edit">
             <Pencil className="h-4 w-4" />
           </button>
-          <button onClick={() => handleDelete(row)} className="text-slate-400 hover:text-red-600" title="Delete">
+          <button type="button" onClick={() => handleDelete(row)} className="rounded-lg border border-transparent p-2 text-slate-400 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600" title="Delete">
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
@@ -382,90 +544,177 @@ export default function Invoices() {
   ]
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">Invoices</h2>
-          <p className="text-sm text-slate-500">Track client invoices and outstanding balances</p>
+    <div className="space-y-5 sm:space-y-6">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-900 via-violet-950 to-indigo-950 p-5 shadow-xl sm:p-6">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-violet-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-12 left-1/4 h-36 w-36 rounded-full bg-amber-400/10 blur-3xl" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-violet-100">
+              <Sparkles className="h-3.5 w-3.5" />
+              Billing & accounts
+            </div>
+            <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Invoices</h2>
+            <p className="mt-1 max-w-xl text-sm text-slate-300">
+              Track client invoices, outstanding balances, and payment status — linked to bookings and quotes
+            </p>
+          </div>
+          <Button onClick={openAdd} className="shrink-0 shadow-lg shadow-violet-900/30">
+            <Plus className="h-4 w-4" /> Add Invoice
+          </Button>
         </div>
-        <Button onClick={openAdd}><Plus className="h-4 w-4" /> Add Invoice</Button>
+        <div className="relative mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { label: 'Total invoices', value: stats.total, icon: FileText },
+            { label: 'Outstanding', value: formatCurrency(stats.outstanding), icon: AlertTriangle },
+            { label: 'Paid', value: formatCurrency(stats.paid), icon: Wallet },
+            { label: 'Overdue', value: stats.overdueCount, icon: CalendarClock },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur-sm transition hover:bg-white/10">
+              <div className="flex items-center gap-2 text-violet-200/80">
+                <Icon className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider">{label}</span>
+              </div>
+              <p className="mt-1 text-lg font-bold tabular-nums text-white">{value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {saveSuccess && (
-        <div className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{saveSuccess}</div>
+        <div className="rounded-xl border border-emerald-200/80 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 shadow-sm">
+          {saveSuccess}
+        </div>
       )}
 
       {listError && (
-        <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">{listError}</div>
+        <div className="rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 shadow-sm">
+          {listError}
+        </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total Invoices</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{stats.total}</p>
-        </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-amber-700">Outstanding</p>
-          <p className="mt-1 text-2xl font-semibold text-amber-900">{formatCurrency(stats.outstanding)}</p>
-        </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Paid</p>
-          <p className="mt-1 text-2xl font-semibold text-emerald-900">{formatCurrency(stats.paid)}</p>
-        </div>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-red-700">Overdue</p>
-          <p className="mt-1 text-2xl font-semibold text-red-900">{stats.overdueCount}</p>
+      {/* Status tabs */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 p-2 shadow-[0_8px_30px_-20px_rgba(15,23,42,0.2)]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/40 to-transparent" />
+        <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1">
+          {statusTabs.map(({ id, label, icon: Icon }) => {
+            const count = id ? statusCounts[id] : statusCounts.all
+            const active = statusFilter === id
+            const tabStyle = getStatusTabStyle(id)
+            return (
+              <button
+                key={id || 'all'}
+                type="button"
+                onClick={() => setStatusFilter(id)}
+                className={`group relative flex min-w-[6.5rem] shrink-0 snap-start flex-col items-center gap-2 rounded-xl border px-3 py-3 transition-all duration-300 sm:min-w-[7.5rem] sm:px-4 sm:py-3.5 ${
+                  active
+                    ? tabStyle.activeClass
+                    : 'border-transparent bg-white/70 text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900 hover:shadow-md'
+                }`}
+              >
+                {active && (
+                  <span className={`absolute inset-x-3 top-0 h-0.5 rounded-full bg-gradient-to-r ${tabStyle.accent}`} />
+                )}
+                <span
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${
+                    active
+                      ? `${tabStyle.iconActive} scale-105`
+                      : 'bg-slate-100 text-slate-500 group-hover:scale-105 group-hover:bg-slate-200 group-hover:text-slate-700'
+                  }`}
+                >
+                  <Icon className="h-[18px] w-[18px]" />
+                </span>
+                <span className={`text-center text-xs font-bold tracking-tight sm:text-sm ${active ? '' : 'text-slate-700'}`}>
+                  {label}
+                </span>
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold tabular-nums transition-all ${
+                    active ? tabStyle.countActive : 'bg-slate-200/80 text-slate-600 group-hover:bg-slate-300/80'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-            placeholder="Search invoice number, description..."
-            className="w-full rounded-lg border border-slate-300 py-2 pl-10 pr-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+      {/* Search & service filter */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-md shadow-violet-900/20">
+              <SlidersHorizontal className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-bold tracking-tight text-slate-900">Search & filters</p>
+              <p className="text-xs text-slate-500">Find invoices by number, client, or service type</p>
+            </div>
+          </div>
+          <span className="rounded-full border border-violet-100 bg-violet-50 px-3 py-1 text-xs font-bold tabular-nums text-violet-800">
+            {invoices.length} of {stats.total} shown
+          </span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_220px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-violet-500" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Invoice number, description, client..."
+              className={`${fieldClass} pl-10 pr-4`}
+            />
+          </div>
+          <Select
+            label="Service type"
+            value={serviceFilter}
+            onChange={(e) => setServiceFilter(e.target.value)}
+            options={serviceOptions}
           />
         </div>
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} options={statusOptions} className="sm:w-44" />
-        <Select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} options={serviceOptions} className="sm:w-52" />
-        <Button variant="secondary" onClick={applyFilters}>Search</Button>
+        {(search || statusFilter || serviceFilter) && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Active</span>
+            {statusFilter && (
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${activeTabStyle.activeClass}`}>
+                {labelFor(INVOICE_STATUSES, statusFilter)}
+              </span>
+            )}
+            {serviceFilter && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800 ring-1 ring-sky-200/80">
+                {labelFor(INVOICE_SERVICE_TYPES, serviceFilter)}
+              </span>
+            )}
+            {search && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 ring-1 ring-violet-200/80">
+                &quot;{search}&quot;
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {loading ? (
-        <p className="text-slate-500">Loading...</p>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  {columns.map((col) => (
-                    <th key={col.key} className="px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">{col.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {invoices.length === 0 ? (
-                  <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-slate-500">No invoices yet.</td></tr>
-                ) : (
-                  invoices.map((row) => (
-                    <tr key={row.id} className={row.status === 'overdue' ? 'bg-red-50/50' : ''}>
-                      {columns.map((col) => (
-                        <td key={col.key} className="px-4 py-3 text-sm text-slate-700">
-                          {col.render ? col.render(row) : row[col.key]}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white py-20 shadow-sm">
+          <Loader2 className="h-7 w-7 animate-spin text-violet-600" />
+          <p className="text-sm text-slate-500">Loading invoices…</p>
         </div>
+      ) : invoices.length === 0 ? (
+        <InvoicesEmptyState statusFilter={statusFilter} onAdd={openAdd} />
+      ) : (
+        <Table
+          variant="premium"
+          headerTone="light"
+          caption={statusFilter ? `${labelFor(INVOICE_STATUSES, statusFilter)} invoices` : 'All invoices'}
+          captionCount={`${invoices.length} shown`}
+          columns={columns}
+          data={invoices}
+          getRowClassName={(row) => (row.status === 'overdue' ? 'bg-rose-50/40' : '')}
+        />
       )}
 
       <Modal
@@ -523,7 +772,7 @@ export default function Invoices() {
             <Input label="Tax" type="number" value={form.tax_amount} onChange={(e) => setForm({ ...form, tax_amount: e.target.value })} />
             <Input label="Currency" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} />
           </div>
-          <div className="rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-800">
+          <div className="rounded-lg bg-violet-50 px-3 py-2 text-sm font-semibold text-violet-800">
             Total: {formatCurrency(estimatedTotal, form.currency)}
           </div>
           <Input label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Athens to London return flights" />
