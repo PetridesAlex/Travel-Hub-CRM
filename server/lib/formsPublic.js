@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
 import { promisify } from 'node:util'
-import { getSupabaseAdmin } from './supabaseAdmin.js'
+import { requireSupabaseAdmin } from './supabaseAdmin.js'
 import { notifyFormSubmission } from './formsNotify.js'
 
 const scryptAsync = promisify(crypto.scrypt)
@@ -111,7 +111,7 @@ async function loadLatestVersion(admin, formId) {
 }
 
 export async function loadPublicForm(token) {
-  const admin = getSupabaseAdmin()
+  const admin = requireSupabaseAdmin()
   const recipient = await loadRecipient(admin, token)
   assertRecipientActive(recipient)
 
@@ -150,7 +150,7 @@ export async function loadPublicForm(token) {
 }
 
 export async function markFormOpened(token) {
-  const admin = getSupabaseAdmin()
+  const admin = requireSupabaseAdmin()
   const recipient = await loadRecipient(admin, token)
   assertRecipientActive(recipient)
 
@@ -168,7 +168,7 @@ export async function markFormOpened(token) {
 }
 
 export async function verifyFormGate(token, { email, booking_ref: bookingRef, access_code: accessCode }) {
-  const admin = getSupabaseAdmin()
+  const admin = requireSupabaseAdmin()
   const recipient = await loadRecipient(admin, token)
   assertRecipientActive(recipient)
 
@@ -253,7 +253,7 @@ function validateAnswers(questions, answers) {
 }
 
 export async function submitForm(token, body, req) {
-  const admin = getSupabaseAdmin()
+  const admin = requireSupabaseAdmin()
   const recipient = await loadRecipient(admin, token)
   assertRecipientActive(recipient)
 
@@ -344,7 +344,7 @@ export async function submitForm(token, body, req) {
 }
 
 export async function uploadFormFile(token, { question_id: questionId, file_name: fileName, mime_type: mimeType, content_base64: contentBase64 }) {
-  const admin = getSupabaseAdmin()
+  const admin = requireSupabaseAdmin()
   const recipient = await loadRecipient(admin, token)
   assertRecipientActive(recipient)
 

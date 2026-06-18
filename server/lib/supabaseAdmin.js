@@ -26,3 +26,13 @@ export function getSupabaseAdmin() {
 
   return { ok: true, supabase }
 }
+
+export function requireSupabaseAdmin() {
+  const result = getSupabaseAdmin()
+  if (!result.ok) {
+    const err = new Error(result.error)
+    err.status = 500
+    throw err
+  }
+  return result.supabase
+}

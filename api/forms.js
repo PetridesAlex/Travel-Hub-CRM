@@ -75,8 +75,11 @@ export default async function handler(req, res) {
       const formId = url.searchParams.get('form_id')
       if (!formId) return res.status(400).json({ error: 'form_id is required.' })
 
-      const admin = getSupabaseAdmin()
-      const resolved = await resolveUserAgency(admin.supabase, auth.user.id)
+      const adminResult = getSupabaseAdmin()
+      if (!adminResult.ok) return res.status(500).json({ error: adminResult.error })
+
+      const admin = adminResult.supabase
+      const resolved = await resolveUserAgency(admin, auth.user.id)
       if (!resolved?.agency?.id) return res.status(403).json({ error: 'Agency access required.' })
 
       const { data: form, error: formError } = await admin
