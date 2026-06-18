@@ -192,9 +192,9 @@ export default function FormBuilder() {
   }
 
   const handleImport = (imported) => {
-    const count = applyImportedForm(imported, { setMeta, setQuestions })
+    const result = applyImportedForm(imported, { setMeta, setQuestions })
     setTab('build')
-    return count
+    return result
   }
 
   const addSection = () => {

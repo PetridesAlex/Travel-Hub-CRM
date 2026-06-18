@@ -1,40 +1,50 @@
-import { parseFormFromText, parseAiFormJson, normalizeAiFormPayload } from '../utils/parseFormFromText'
+import { parseFormFromText, normalizeAiFormPayload } from '../utils/parseFormFromText'
+import { importFormFromAi, isAiAvailable } from './aiAssist'
 
 export async function importFormFromText(text, session, { useAi = true } = {}) {
   const trimmed = String(text || '').trim()
-  if (!trimmed) throw new Error('Paste your survey questions first.')
+  if (!trimmed) throw new Error('Paste your survey text in the box above first.')
 
-  if (!useAi || !session?.access_token) {
+  if (!useAi) {
     return normalizeAiFormPayload(parseFormFromText(trimmed))
   }
 
+  if (!isAiAvailable(session)) {
+    throw new Error('You must be signed in to use AI generation.')
+  }
+
   try {
-    const res = await fetch('/api/ai/assist', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ task: 'form_import', text: trimmed }),
-    })
-
-    const raw = await res.text()
-    let data = {}
-    try { data = raw ? JSON.parse(raw) : {} } catch { data = {} }
-
-    if (!res.ok) throw new Error(data.error || raw?.slice(0, 200))
-
-    if (data.form) return normalizeAiFormPayload(data.form)
-    return parseAiFormJson(data.output)
+    const form = await importFormFromAi(trimmed, session)
+    if (!form?.questions?.length) {
+      throw new Error('AI returned an empty form. Try Quick parse or refine your outline.')
+    }
+    return normalizeAiFormPayload(form)
   } catch (err) {
-    if (err.message?.includes('OPENAI') || err.message?.includes('502')) {
-      return normalizeAiFormPayload(parseFormFromText(trimmed))
+    const msg = err.message || ''
+    const canFallback =
+      msg.includes('502') ||
+      msg.includes('OPENAI') ||
+      msg.includes('unavailable') ||
+      msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError')
+
+    if (canFallback) {
+      const local = normalizeAiFormPayload(parseFormFromText(trimmed))
+      if (local.questions?.length) {
+        local._fallbackNote =
+          'AI server was unavailable — used quick parse instead. For best results, run "npm run dev:api" locally or check Vercel env vars.'
+      }
+      return local
     }
     throw err
   }
 }
 
-export function applyImportedForm({ title, description, settings, questions }, { setMeta, setQuestions }) {
+export function applyImportedForm({ title, description, settings, questions, _fallbackNote }, { setMeta, setQuestions }) {
+  if (!questions?.length) {
+    throw new Error('No questions were found. Check your outline has questions ending with "?" and bullet options.')
+  }
+
   setMeta((prev) => ({
     ...prev,
     title,
@@ -55,5 +65,5 @@ export function applyImportedForm({ title, description, settings, questions }, {
   }))
 
   setQuestions(imported)
-  return imported.length
+  return { count: imported.length, fallbackNote: _fallbackNote || null }
 }

@@ -8,14 +8,21 @@ async function callAiAssist(task, payload, session) {
     throw new Error('You must be signed in to use AI features.')
   }
 
-  const res = await fetch('/api/ai/assist', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ task, ...payload }),
-  })
+  let res
+  try {
+    res = await fetch('/api/ai/assist', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ task, ...payload }),
+    })
+  } catch {
+    throw new Error(
+      'AI API unreachable. On local dev, run "npm run dev:api" in a second terminal, then try again.',
+    )
+  }
 
   const raw = await res.text()
   let data = {}
@@ -71,6 +78,11 @@ export async function askCrmAssistant({ prompt, message, question }, session) {
 export async function chatCompletion({ messages, instructions, temperature, images }, session) {
   const data = await callAiAssist('chat', { messages, instructions, temperature, images }, session)
   return data.output
+}
+
+export async function importFormFromAi(text, session) {
+  const data = await callAiAssist('form_import', { text }, session)
+  return data.form || null
 }
 
 export async function askCalendarAssistant(payload, session) {
