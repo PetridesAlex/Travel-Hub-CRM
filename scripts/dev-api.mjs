@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url'
 import generateHandler from '../api/ai/generate.js'
 import assistHandler from '../api/ai/assist.js'
 import voiceProgramHandler from '../api/ai/voice-program.js'
-import extractFlightHandler from '../api/ai/extract-flight-fields.js'
 import extractTemplateFieldsHandler from '../api/ai/extract-template-fields.js'
+import formsHandler from '../api/forms.js'
 import compareHotelRatesHandler from '../api/ai/compare-hotel-rates.js'
 import slackTestHandler from '../api/slack/test.js'
 import slackNotifyHandler from '../api/slack/notify.js'
@@ -21,8 +21,18 @@ const apiRoutes = {
   '/api/ai/assist': assistHandler,
   '/api/ai/calendar-assist': assistHandler,
   '/api/ai/voice-program': voiceProgramHandler,
-  '/api/ai/extract-flight-fields': extractFlightHandler,
+  '/api/ai/extract-flight-fields': async (req, res) => {
+    req.body = { ...req.body, category: 'flight_offer' }
+    return extractTemplateFieldsHandler(req, res)
+  },
   '/api/ai/extract-template-fields': extractTemplateFieldsHandler,
+  '/api/forms': formsHandler,
+  '/api/forms/public': formsHandler,
+  '/api/forms/open': formsHandler,
+  '/api/forms/verify-gate': formsHandler,
+  '/api/forms/submit': formsHandler,
+  '/api/forms/upload': formsHandler,
+  '/api/forms/export': formsHandler,
   '/api/ai/compare-hotel-rates': compareHotelRatesHandler,
   '/api/slack/test': slackTestHandler,
   '/api/slack/notify': slackNotifyHandler,

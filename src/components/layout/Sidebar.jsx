@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Target, FileText, CalendarCheck,
   Building2, CheckSquare, Calendar, Mail, Mic, Megaphone, Settings,
-  ScrollText, Receipt, Sparkles, Bot, FileStack, History, Orbit,
+  ScrollText, Receipt, Sparkles, Bot, FileStack, History, Orbit, ClipboardList,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { NAV_ITEMS } from '../../constants/enums'
@@ -12,14 +12,14 @@ import { resolveAgencyLogoUrl } from '../../utils/resolveAgencyLogo'
 const ICONS = {
   LayoutDashboard, Users, Target, FileText, CalendarCheck,
   Building2, CheckSquare, Calendar, Mail, Mic, Megaphone, Settings,
-  ScrollText, Receipt, Sparkles, Bot, FileStack, History,
+  ScrollText, Receipt, Sparkles, Bot, FileStack, History, ClipboardList,
 }
 
 const NAV_GROUPS = [
   { label: 'Overview', paths: ['/dashboard'], accent: 'teal' },
   { label: 'Sales', paths: ['/clients', '/leads', '/quotations', '/bookings'], accent: 'sky' },
   { label: 'Finance', paths: ['/invoices', '/receipts'], accent: 'emerald' },
-  { label: 'Operations', paths: ['/suppliers', '/tasks', '/calendar'], accent: 'amber' },
+  { label: 'Operations', paths: ['/suppliers', '/tasks', '/calendar', '/forms'], accent: 'amber' },
   { label: 'AI Workspace', paths: ['/ai-workspace/generator', '/ai-workspace/agents', '/ai-workspace/templates', '/ai-workspace/history'], accent: 'violet' },
   { label: 'AI Suite', paths: ['/ai-email', '/voice-notes', '/marketing'], accent: 'indigo' },
 ]

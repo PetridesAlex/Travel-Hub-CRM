@@ -28,7 +28,8 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Authentication required.' })
   }
 
-  const category = req.body?.category || 'general_email'
+  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
+  const category = req.body?.category || url.searchParams.get('category') || 'general_email'
   if (!CATEGORY_FIELD_SCHEMAS[category]) {
     return res.status(400).json({ error: `Unsupported template category: ${category}` })
   }

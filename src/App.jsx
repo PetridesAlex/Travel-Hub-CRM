@@ -16,6 +16,11 @@ import Receipts from './pages/Receipts'
 import Suppliers from './pages/Suppliers'
 import Tasks from './pages/Tasks'
 import Calendar from './pages/Calendar'
+import Forms from './pages/forms/Forms'
+import FormBuilder from './pages/forms/FormBuilder'
+import FormResponses from './pages/forms/FormResponses'
+import FormAnalytics from './pages/forms/FormAnalytics'
+import PublicFormPage from './pages/forms/PublicFormPage'
 import AIEmailAssistant from './pages/AIEmailAssistant'
 import VoiceNotes from './pages/VoiceNotes'
 import MarketingCampaigns from './pages/MarketingCampaigns'
@@ -40,6 +45,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/f/:token" element={<PublicFormPage />} />
 
           <Route
             element={
@@ -59,6 +65,11 @@ export default function App() {
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/calendar" element={<Calendar />} />
+            <Route path="/forms" element={<Forms />} />
+            <Route path="/forms/new" element={<FormBuilder />} />
+            <Route path="/forms/:formId/edit" element={<FormBuilder />} />
+            <Route path="/forms/:formId/responses" element={<FormResponses />} />
+            <Route path="/forms/:formId/analytics" element={<FormAnalytics />} />
             <Route path="/ai-workspace/agents" element={<AIAgents />} />
             <Route path="/ai-workspace/templates" element={<AITemplates />} />
             <Route path="/ai-workspace/generator" element={<AIGenerator />} />

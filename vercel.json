@@ -20,9 +20,6 @@
     "api/ai/generate.js": {
       "maxDuration": 60
     },
-    "api/ai/extract-flight-fields.js": {
-      "maxDuration": 60
-    },
     "api/ai/extract-template-fields.js": {
       "maxDuration": 60
     },
@@ -45,6 +42,9 @@
       "maxDuration": 30
     },
     "api/agency.js": {
+      "maxDuration": 30
+    },
+    "api/forms.js": {
       "maxDuration": 30
     }
   },
@@ -76,6 +76,18 @@
     {
       "source": "/api/ai/calendar-assist",
       "destination": "/api/ai/assist?route=calendar-assist"
+    },
+    {
+      "source": "/api/ai/extract-flight-fields",
+      "destination": "/api/ai/extract-template-fields?category=flight_offer"
+    },
+    {
+      "source": "/api/forms/public",
+      "destination": "/api/forms?action=public"
+    },
+    {
+      "source": "/api/forms/:action",
+      "destination": "/api/forms?action=:action"
     },
     {
       "source": "/((?!api/).*)",
