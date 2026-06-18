@@ -1,4 +1,5 @@
 import { resolveAgencyLogoUrl } from '../../utils/resolveAgencyLogo'
+import FormTravelBackground from './FormTravelBackground'
 
 const DEFAULT_BRAND = '#b71c1c'
 
@@ -93,15 +94,17 @@ export default function FormShell({
   const branding = getFormBranding(form, agency)
 
   return (
-    <div className={`min-h-screen px-4 py-8 sm:px-6 ${className}`} style={{ backgroundColor: '#f0ebe3' }}>
-      <div className="mx-auto max-w-[640px] space-y-3">
-        {(branding.heroImage || branding.logoUrl || agency?.name) && (
-          <div className="overflow-hidden rounded-xl bg-white shadow-[0_1px_3px_rgba(60,64,67,0.15)]">
-            <FormHero branding={branding} agencyName={agency?.name} />
-          </div>
-        )}
-        {children}
+    <FormTravelBackground brandColor={branding.brandColor} className={className}>
+      <div className="px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-[640px] space-y-3">
+          {(branding.heroImage || branding.logoUrl || agency?.name) && (
+            <div className="overflow-hidden rounded-xl bg-white shadow-[0_1px_3px_rgba(60,64,67,0.15)]">
+              <FormHero branding={branding} agencyName={agency?.name} />
+            </div>
+          )}
+          {children}
+        </div>
       </div>
-    </div>
+    </FormTravelBackground>
   )
 }

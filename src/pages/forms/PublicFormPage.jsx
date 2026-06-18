@@ -10,6 +10,7 @@ import {
 } from '../../services/formsPublicApi'
 import QuestionRenderer from '../../components/forms/QuestionRenderer'
 import FormShell, { FormTitleCard, FormQuestionCard, getFormBranding } from '../../components/forms/FormShell'
+import FormTravelBackground from '../../components/forms/FormTravelBackground'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 
@@ -77,45 +78,53 @@ export default function PublicFormPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#f0ebe3' }}>
-        <Loader2 className="h-8 w-8 animate-spin text-slate-600" />
-      </div>
+      <FormTravelBackground>
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-600" />
+        </div>
+      </FormTravelBackground>
     )
   }
 
   if (error && !formData) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6" style={{ backgroundColor: '#f0ebe3' }}>
-        <div className="max-w-md rounded-xl border border-rose-200 bg-white p-8 text-center shadow-lg">
-          <ShieldAlert className="mx-auto h-10 w-10 text-rose-500" />
-          <h1 className="mt-4 text-lg font-semibold text-slate-900">Form unavailable</h1>
-          <p className="mt-2 text-sm text-slate-600">{error}</p>
+      <FormTravelBackground>
+        <div className="flex min-h-screen items-center justify-center p-6">
+          <div className="max-w-md rounded-xl border border-rose-200 bg-white/95 p-8 text-center shadow-lg backdrop-blur-sm">
+            <ShieldAlert className="mx-auto h-10 w-10 text-rose-500" />
+            <h1 className="mt-4 text-lg font-semibold text-slate-900">Form unavailable</h1>
+            <p className="mt-2 text-sm text-slate-600">{error}</p>
+          </div>
         </div>
-      </div>
+      </FormTravelBackground>
     )
   }
+
+  const form = formData?.form
+  const questions = formData?.questions || []
+  const branding = getFormBranding(form)
+  const sortedQuestions = [...questions].sort((a, b) => a.sort_order - b.sort_order)
+  const gateConfig = form?.gate_config || {}
 
   if (submitted) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6" style={{ backgroundColor: '#f0ebe3' }}>
-        <div className="max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-lg">
-          <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
-          <h1 className="mt-4 text-xl font-bold text-slate-900">Thank you!</h1>
-          <p className="mt-2 text-slate-600">{thankYou}</p>
+      <FormTravelBackground brandColor={branding.brandColor}>
+        <div className="flex min-h-screen items-center justify-center p-6">
+          <div className="max-w-md rounded-xl border border-slate-200 bg-white/95 p-8 text-center shadow-lg backdrop-blur-sm">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
+            <h1 className="mt-4 text-xl font-bold text-slate-900">Thank you!</h1>
+            <p className="mt-2 text-slate-600">{thankYou}</p>
+          </div>
         </div>
-      </div>
+      </FormTravelBackground>
     )
   }
 
-  const { form, questions = [] } = formData || {}
-  const sortedQuestions = [...questions].sort((a, b) => a.sort_order - b.sort_order)
-  const gateConfig = form?.gate_config || {}
-  const branding = getFormBranding(form)
-
   if (!gatePassed) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6" style={{ backgroundColor: '#f0ebe3' }}>
-        <form onSubmit={handleVerifyGate} className="w-full max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-8 shadow-lg">
+      <FormTravelBackground brandColor={branding.brandColor}>
+        <div className="flex min-h-screen items-center justify-center p-6">
+        <form onSubmit={handleVerifyGate} className="w-full max-w-md space-y-4 rounded-xl border border-slate-200 bg-white/95 p-8 shadow-lg backdrop-blur-sm">
           <div className="flex items-center gap-2 text-slate-800">
             <Lock className="h-5 w-5" />
             <h1 className="text-lg font-semibold">Verify access</h1>
@@ -133,7 +142,8 @@ export default function PublicFormPage() {
           {error && <p className="text-sm text-rose-600">{error}</p>}
           <Button type="submit" className="w-full">Continue</Button>
         </form>
-      </div>
+        </div>
+      </FormTravelBackground>
     )
   }
 

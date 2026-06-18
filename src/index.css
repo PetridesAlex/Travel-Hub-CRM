@@ -1400,3 +1400,133 @@ body {
   border-color: rgba(99, 102, 241, 0.4);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
 }
+
+/* ── Public form travel background ── */
+.form-travel-bg {
+  background: linear-gradient(
+    165deg,
+    #dbeafe 0%,
+    #e0f2fe 22%,
+    #fef9c3 58%,
+    #fde68a 78%,
+    #f5ebe0 100%
+  );
+}
+
+.form-travel-bg__mesh {
+  background-image:
+    radial-gradient(circle at 18% 12%, rgb(255 255 255 / 0.55) 0%, transparent 42%),
+    radial-gradient(circle at 82% 8%, rgb(251 191 36 / 0.28) 0%, transparent 38%),
+    radial-gradient(circle at 50% 100%, rgb(13 148 136 / 0.08) 0%, transparent 55%);
+  animation: formTravelMeshShift 18s ease-in-out infinite alternate;
+}
+
+.form-travel-bg__sun {
+  background: radial-gradient(
+    circle at 88% 10%,
+    rgb(253 224 71 / 0.45) 0%,
+    rgb(251 191 36 / 0.12) 22%,
+    transparent 48%
+  );
+}
+
+.form-travel-bg__cloud {
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.72);
+  filter: blur(1px);
+  box-shadow:
+    0 0 40px rgb(255 255 255 / 0.5),
+    inset 0 -8px 16px rgb(148 163 184 / 0.08);
+}
+
+.form-travel-bg__cloud--1 {
+  top: 8%;
+  left: -8%;
+  width: 14rem;
+  height: 3.5rem;
+  animation: formCloudDrift1 42s linear infinite;
+}
+
+.form-travel-bg__cloud--2 {
+  top: 16%;
+  right: -12%;
+  width: 18rem;
+  height: 4rem;
+  opacity: 0.85;
+  animation: formCloudDrift2 55s linear infinite;
+}
+
+.form-travel-bg__cloud--3 {
+  top: 24%;
+  left: 35%;
+  width: 11rem;
+  height: 2.75rem;
+  opacity: 0.65;
+  animation: formCloudDrift3 38s linear infinite;
+}
+
+.form-travel-bg__mountains {
+  color: var(--form-brand, #0d9488);
+  opacity: 0.9;
+}
+
+.form-travel-bg__route {
+  color: rgb(100 116 139 / 0.35);
+}
+
+.form-travel-bg__route-line {
+  stroke-dashoffset: 0;
+  animation: formRouteDash 24s linear infinite;
+}
+
+.form-travel-bg__plane {
+  offset-path: path("M -40 720 Q 360 520, 720 480 T 1480 280");
+  offset-rotate: auto 12deg;
+  animation: formPlaneFly 28s ease-in-out infinite;
+  filter: drop-shadow(0 2px 6px rgb(15 23 42 / 0.12));
+}
+
+@keyframes formTravelMeshShift {
+  0% { transform: scale(1) translateY(0); }
+  100% { transform: scale(1.04) translateY(-1.5%); }
+}
+
+@keyframes formCloudDrift1 {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(100vw + 16rem)); }
+}
+
+@keyframes formCloudDrift2 {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-100vw - 20rem)); }
+}
+
+@keyframes formCloudDrift3 {
+  0% { transform: translateX(-20%); }
+  100% { transform: translateX(calc(100vw + 8rem)); }
+}
+
+@keyframes formRouteDash {
+  to { stroke-dashoffset: -160; }
+}
+
+@keyframes formPlaneFly {
+  0% { offset-distance: 0%; opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-travel-bg__mesh,
+  .form-travel-bg__cloud,
+  .form-travel-bg__route-line,
+  .form-travel-bg__plane {
+    animation: none;
+  }
+
+  .form-travel-bg__plane {
+    offset-distance: 55%;
+    opacity: 0.7;
+  }
+}
