@@ -1,5 +1,6 @@
+import { Link } from 'react-router-dom'
 import {
-  CalendarClock, Mail, Pencil, Phone, Trash2, User, FileText,
+  CalendarClock, Mail, Pencil, Phone, Trash2, User, FileText, ChevronRight,
 } from 'lucide-react'
 import Badge from '../ui/Badge'
 import { LEAD_STATUSES, TRAVEL_TYPES } from '../../constants/enums'
@@ -19,20 +20,39 @@ export function LeadClientCell({ client }) {
     return <span className="text-sm text-slate-400">Unlinked</span>
   }
 
+  const profileUrl = `/clients/${client.id}`
+
   return (
     <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-      <div className="relative shrink-0">
-        <div className="absolute inset-0 rounded-full bg-teal-400/20 blur-[2px]" />
-        <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-xs font-bold text-white ring-2 ring-white shadow-sm">
+      <Link
+        to={profileUrl}
+        onClick={(e) => e.stopPropagation()}
+        className="group/avatar relative shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2"
+        aria-label={`View ${formatClientName(client)} profile`}
+        title="Open client profile"
+      >
+        <div className="absolute inset-0 rounded-full bg-teal-400/20 blur-[2px] transition group-hover/avatar:bg-teal-400/35" />
+        <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-xs font-bold text-white ring-2 ring-white shadow-sm transition group-hover/avatar:scale-105 group-hover/avatar:from-teal-600 group-hover/avatar:to-slate-900">
           {getClientInitials(client)}
         </div>
-      </div>
+      </Link>
       <div className="min-w-0">
-        <p className="truncate font-semibold tracking-tight text-slate-900">{formatClientName(client)}</p>
-        <p className="flex items-center gap-1 text-[11px] text-slate-500">
+        <Link
+          to={profileUrl}
+          onClick={(e) => e.stopPropagation()}
+          className="group/name block truncate font-semibold tracking-tight text-slate-900 transition hover:text-teal-700"
+        >
+          {formatClientName(client)}
+        </Link>
+        <Link
+          to={profileUrl}
+          onClick={(e) => e.stopPropagation()}
+          className="group/hint mt-0.5 flex items-center gap-1 text-[11px] text-slate-500 transition hover:text-teal-600"
+        >
           <User className="h-3 w-3 shrink-0" />
-          Client profile
-        </p>
+          <span>View profile</span>
+          <ChevronRight className="h-3 w-3 opacity-0 transition group-hover/hint:opacity-100" />
+        </Link>
       </div>
     </div>
   )

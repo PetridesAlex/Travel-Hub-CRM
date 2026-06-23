@@ -18,15 +18,23 @@ export default function CrmQuickCaptureBanner({ onOpen, mode = 'client' }) {
           <div className="min-w-0">
             <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-violet-200/80 bg-violet-100/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-violet-800">
               <Sparkles className="h-3 w-3" />
-              AI assistant
+              AI Assistant
             </div>
             <h3 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
-              {isClient ? 'Add clients by typing naturally' : 'Capture leads from any message'}
+              {isClient ? 'Your client, captured in seconds' : 'Turn enquiries into leads instantly'}
             </h3>
-            <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-600">
-              {isClient
-                ? 'Choose Individual or Corporate, paste details or speak freely — e.g. “Save Alex Petrides, phone 97866884, email alex@…”'
-                : 'Paste WhatsApp, email, or phone notes — I extract the client, trip, and budget automatically.'}
+            <p className="mt-1.5 max-w-lg text-[13px] leading-relaxed text-slate-500 sm:text-sm">
+              {isClient ? (
+                <>
+                  <span className="font-medium text-slate-700">No forms to fill.</span>{' '}
+                  Tell me who they are — individual or corporate — and I’ll structure their name, email, and phone for you.
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-slate-700">Paste any message.</span>{' '}
+                  From a WhatsApp note to an email snippet, I’ll extract the client, trip details, and budget.
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -35,7 +43,7 @@ export default function CrmQuickCaptureBanner({ onOpen, mode = 'client' }) {
           onClick={onOpen}
           className="shrink-0 bg-gradient-to-r from-violet-600 to-teal-600 shadow-lg shadow-violet-900/20 hover:from-violet-700 hover:to-teal-700"
         >
-          Open AI assistant
+          Open assistant
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
