@@ -3,6 +3,7 @@ import { isOpenAiConfigured, createOpenAiResponse } from '../../server/lib/opena
 import { AI_ASSIST_TASKS, buildAssistPrompt } from '../../server/lib/aiAssistPrompts.js'
 import { buildCalendarAssistPrompt } from '../../server/lib/calendarAssistPrompt.js'
 import { parseAiFormJson } from '../../server/lib/formImportParse.js'
+import { parseAiCrmCaptureJson } from '../../server/lib/crmCaptureParse.js'
 
 function isCalendarAssistRoute(req) {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
@@ -102,6 +103,15 @@ export default async function handler(req, res) {
         return res.status(200).json({ form, task, model: raw?.model || undefined })
       } catch (parseErr) {
         return res.status(422).json({ error: parseErr.message || 'Could not parse AI form output.' })
+      }
+    }
+
+    if (task === 'crm_capture') {
+      try {
+        const capture = parseAiCrmCaptureJson(text, body.mode === 'client' ? 'client' : 'lead')
+        return res.status(200).json({ capture, task, model: raw?.model || undefined })
+      } catch (parseErr) {
+        return res.status(422).json({ error: parseErr.message || 'Could not parse AI capture output.' })
       }
     }
 

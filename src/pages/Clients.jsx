@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Pencil, Trash2, User, Building2, Users, SlidersHorizontal,
   Search, ArrowUpDown, Globe, ChevronDown, X, Sparkles, Loader2,
-  Phone, MoreHorizontal, UserCircle,
+  Phone, MoreHorizontal, UserCircle, MessageSquarePlus,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
@@ -17,6 +17,7 @@ import { CLIENT_TYPES } from '../constants/enums'
 import { formatClientName, labelFor, formatDateTime } from '../utils/format'
 import { notifySlack } from '../services/slackNotify'
 import LeadTableHeader, { PREMIUM_HEADER_CLASS, PREMIUM_CELL_CLASS } from '../components/leads/LeadTableHeader'
+import CrmQuickCaptureModal from '../components/crm/CrmQuickCaptureModal'
 
 const TYPE_TABS = [
   {
@@ -178,6 +179,7 @@ export default function Clients() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [captureOpen, setCaptureOpen] = useState(false)
 
   const isBusiness = form.client_type === 'business'
 
@@ -405,6 +407,13 @@ export default function Clients() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setCaptureOpen(true)}
+              className="!border-violet-300/40 !bg-violet-500/20 !text-white hover:!bg-violet-500/30"
+            >
+              <MessageSquarePlus className="h-4 w-4" /> Quick capture
+            </Button>
             <Button
               variant="secondary"
               onClick={() => openAdd('individual')}
@@ -681,6 +690,13 @@ export default function Clients() {
           </div>
         </div>
       </Modal>
+
+      <CrmQuickCaptureModal
+        isOpen={captureOpen}
+        onClose={() => setCaptureOpen(false)}
+        mode="client"
+        onSaved={() => loadClients()}
+      />
     </div>
   )
 }

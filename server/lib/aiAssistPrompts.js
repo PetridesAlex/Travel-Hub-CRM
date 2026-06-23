@@ -1,6 +1,7 @@
 import { PROFESSIONAL_EMAIL_EXAMPLE } from './professionalEmailExample.js'
 import { buildCalendarAssistPrompt } from './calendarAssistPrompt.js'
 import { buildFormImportPrompt } from './formImportPrompt.js'
+import { buildCrmCapturePrompt } from './crmCapturePrompt.js'
 
 const EMAIL_SYSTEM_PROMPT = `You are a senior travel consultant at an established professional travel agency. You write polished, fully formal business correspondence suitable for corporate clients and discerning travellers.
 
@@ -71,6 +72,7 @@ export const AI_ASSIST_TASKS = new Set([
   'chat',
   'calendar_assist',
   'form_import',
+  'crm_capture',
 ])
 
 const EMAIL_TASKS = new Set([
@@ -155,6 +157,9 @@ Write in formal business English. If information is missing, state what is neede
 
     case 'form_import':
       return buildFormImportPrompt(payload)
+
+    case 'crm_capture':
+      return buildCrmCapturePrompt(payload)
 
     default:
       throw new Error(`Unsupported AI task: ${task}`)

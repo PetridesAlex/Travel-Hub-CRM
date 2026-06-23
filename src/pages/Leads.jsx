@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Plus, SlidersHorizontal, Sparkles, Target, TrendingUp, CalendarClock,
-  User, Mail, MapPin, Tag, Wallet, Flag, Calendar, MoreHorizontal,
+  User, Mail, MapPin, Tag, Wallet, Flag, Calendar, MoreHorizontal, MessageSquarePlus,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
@@ -30,6 +30,7 @@ import { formatClientName, formatClientOptionLabel } from '../utils/format'
 import { LEAD_STATUS_ROW_ACCENT } from '../utils/leadDisplay'
 import { notifySlack } from '../services/slackNotify'
 import { defaultLeadFollowUpDate } from '../utils/exportPdf'
+import CrmQuickCaptureModal from '../components/crm/CrmQuickCaptureModal'
 
 const emptyForm = {
   client_id: '',
@@ -91,6 +92,7 @@ export default function Leads() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [captureOpen, setCaptureOpen] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -329,9 +331,18 @@ export default function Leads() {
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Leads</h2>
             <p className="mt-1 text-xs text-slate-300 sm:text-sm">Track enquiries, contact details, and opportunities in one place</p>
           </div>
-          <Button onClick={openAdd} className="relative shrink-0 shadow-lg shadow-teal-900/30">
-            <Plus className="h-4 w-4" /> Add Lead
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setCaptureOpen(true)}
+              className="!border-violet-300/40 !bg-violet-500/20 !text-white hover:!bg-violet-500/30"
+            >
+              <MessageSquarePlus className="h-4 w-4" /> Quick capture
+            </Button>
+            <Button onClick={openAdd} className="relative shrink-0 shadow-lg shadow-teal-900/30">
+              <Plus className="h-4 w-4" /> Add Lead
+            </Button>
+          </div>
         </div>
 
         <div className="relative mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -472,6 +483,13 @@ export default function Leads() {
           </div>
         </div>
       </Modal>
+
+      <CrmQuickCaptureModal
+        isOpen={captureOpen}
+        onClose={() => setCaptureOpen(false)}
+        mode="lead"
+        onSaved={() => loadData()}
+      />
     </div>
   )
 }

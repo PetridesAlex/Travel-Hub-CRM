@@ -85,6 +85,11 @@ export async function importFormFromAi(text, session) {
   return data.form || null
 }
 
+export async function captureCrmFromAi(text, session, { mode = 'lead' } = {}) {
+  const data = await callAiAssist('crm_capture', { text, mode }, session)
+  return data.capture || null
+}
+
 export async function askCalendarAssistant(payload, session) {
   if (!session?.access_token) {
     throw new Error('You must be signed in to use the AI assistant.')
