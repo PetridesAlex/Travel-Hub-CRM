@@ -41,7 +41,7 @@ function inferName(text) {
     extractLabel(text, ['from'])
   if (labeled) return labeled.replace(/<.*>/, '').trim()
 
-  const newClient = text.match(/(?:new client|add client|client)\s*[—–-:]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/i)
+  const newClient = text.match(/(?:new client|add client|client)\s*[-—–:]?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/i)
   if (newClient?.[1]) return newClient[1].trim()
 
   return null
