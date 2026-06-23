@@ -8,12 +8,14 @@ import { notifySlack } from './slackNotify'
 import { formatClientName } from '../utils/format'
 import { defaultLeadFollowUpDate } from '../utils/exportPdf'
 
-export async function extractCrmCapture(text, session, { mode = 'lead', useAi = true } = {}) {
+export async function extractCrmCapture(text, session, { mode = 'lead', useAi = true, clientType = null } = {}) {
   const trimmed = String(text || '').trim()
   if (!trimmed) throw new Error('Type a message with client or lead details first.')
 
+  const options = { clientTypeHint: clientType }
+
   if (!useAi) {
-    return parseCrmCaptureFromText(trimmed, mode)
+    return parseCrmCaptureFromText(trimmed, mode, options)
   }
 
   if (!isAiAvailable(session)) {
@@ -21,7 +23,7 @@ export async function extractCrmCapture(text, session, { mode = 'lead', useAi = 
   }
 
   try {
-    const capture = await captureCrmFromAi(trimmed, session, { mode })
+    const capture = await captureCrmFromAi(trimmed, session, { mode, client_type: clientType })
     if (!capture) throw new Error('AI returned empty data. Try again or use quick parse.')
     return { ...capture, _fallbackNote: null }
   } catch (err) {
@@ -35,7 +37,7 @@ export async function extractCrmCapture(text, session, { mode = 'lead', useAi = 
       msg.includes('422')
 
     if (canFallback) {
-      const local = parseCrmCaptureFromText(trimmed, mode)
+      const local = parseCrmCaptureFromText(trimmed, mode, options)
       return {
         ...local,
         _fallbackNote: 'AI was unavailable — used quick parse. Check the preview before saving.',

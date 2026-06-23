@@ -85,8 +85,8 @@ export async function importFormFromAi(text, session) {
   return data.form || null
 }
 
-export async function captureCrmFromAi(text, session, { mode = 'lead' } = {}) {
-  const data = await callAiAssist('crm_capture', { text, mode }, session)
+export async function captureCrmFromAi(text, session, { mode = 'lead', client_type: clientType = null } = {}) {
+  const data = await callAiAssist('crm_capture', { text, mode, client_type: clientType }, session)
   return data.capture || null
 }
 

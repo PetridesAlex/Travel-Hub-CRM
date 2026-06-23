@@ -108,7 +108,10 @@ export default async function handler(req, res) {
 
     if (task === 'crm_capture') {
       try {
-        const capture = parseAiCrmCaptureJson(text, body.mode === 'client' ? 'client' : 'lead')
+        const clientType = body.client_type === 'business' ? 'business' : body.client_type === 'individual' ? 'individual' : null
+        const capture = parseAiCrmCaptureJson(text, body.mode === 'client' ? 'client' : 'lead', {
+          clientTypeHint: body.mode === 'client' ? clientType : null,
+        })
         return res.status(200).json({ capture, task, model: raw?.model || undefined })
       } catch (parseErr) {
         return res.status(422).json({ error: parseErr.message || 'Could not parse AI capture output.' })

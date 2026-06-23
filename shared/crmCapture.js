@@ -63,10 +63,18 @@ function normalizeLead(raw = null) {
   }
 }
 
-export function normalizeCrmCapturePayload(data, mode = 'lead') {
+export function normalizeCrmCapturePayload(data, mode = 'lead', options = {}) {
   if (!data || typeof data !== 'object') throw new Error('Invalid capture data')
 
-  const client = normalizeClient(data.client || {})
+  const clientTypeHint = options.clientTypeHint === 'business' ? 'business' : options.clientTypeHint === 'individual' ? 'individual' : null
+  const rawClient = { ...(data.client || {}) }
+
+  if (clientTypeHint && mode === 'client') {
+    rawClient.client_type = clientTypeHint
+    if (clientTypeHint === 'individual') rawClient.company_name = null
+  }
+
+  const client = normalizeClient(rawClient)
   let lead = normalizeLead(data.lead)
 
   let intent = data.intent
@@ -102,10 +110,10 @@ export function normalizeCrmCapturePayload(data, mode = 'lead') {
   }
 }
 
-export function parseAiCrmCaptureJson(output, mode = 'lead') {
+export function parseAiCrmCaptureJson(output, mode = 'lead', options = {}) {
   const text = String(output || '').trim()
   const jsonMatch = text.match(/\{[\s\S]*\}/)
   if (!jsonMatch) throw new Error('AI did not return valid JSON.')
   const parsed = JSON.parse(jsonMatch[0])
-  return normalizeCrmCapturePayload(parsed, mode)
+  return normalizeCrmCapturePayload(parsed, mode, options)
 }

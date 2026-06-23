@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Pencil, Trash2, User, Building2, Users, SlidersHorizontal,
   Search, ArrowUpDown, Globe, ChevronDown, X, Sparkles, Loader2,
-  Phone, MoreHorizontal, UserCircle, MessageSquarePlus,
+  Phone, MoreHorizontal, UserCircle,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
@@ -18,6 +18,7 @@ import { formatClientName, labelFor, formatDateTime } from '../utils/format'
 import { notifySlack } from '../services/slackNotify'
 import LeadTableHeader, { PREMIUM_HEADER_CLASS, PREMIUM_CELL_CLASS } from '../components/leads/LeadTableHeader'
 import CrmQuickCaptureModal from '../components/crm/CrmQuickCaptureModal'
+import CrmQuickCaptureBanner from '../components/crm/CrmQuickCaptureBanner'
 
 const TYPE_TABS = [
   {
@@ -180,6 +181,12 @@ export default function Clients() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [captureOpen, setCaptureOpen] = useState(false)
+  const [captureProfile, setCaptureProfile] = useState('individual')
+
+  function openCapture(profile = typeFilter === 'business' ? 'business' : 'individual') {
+    setCaptureProfile(profile)
+    setCaptureOpen(true)
+  }
 
   const isBusiness = form.client_type === 'business'
 
@@ -409,13 +416,6 @@ export default function Clients() {
           <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
-              onClick={() => setCaptureOpen(true)}
-              className="!border-violet-300/40 !bg-violet-500/20 !text-white hover:!bg-violet-500/30"
-            >
-              <MessageSquarePlus className="h-4 w-4" /> Quick capture
-            </Button>
-            <Button
-              variant="secondary"
               onClick={() => openAdd('individual')}
               className="!border-white/20 !bg-white/10 !text-white hover:!bg-white/20"
             >
@@ -443,6 +443,8 @@ export default function Clients() {
           ))}
         </div>
       </div>
+
+      <CrmQuickCaptureBanner mode="client" onOpen={() => openCapture()} />
 
       {/* Type tabs */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 p-2 shadow-[0_8px_30px_-20px_rgba(15,23,42,0.2)]">
@@ -695,6 +697,7 @@ export default function Clients() {
         isOpen={captureOpen}
         onClose={() => setCaptureOpen(false)}
         mode="client"
+        initialProfile={captureProfile}
         onSaved={() => loadClients()}
       />
     </div>

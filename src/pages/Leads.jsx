@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Plus, SlidersHorizontal, Sparkles, Target, TrendingUp, CalendarClock,
-  User, Mail, MapPin, Tag, Wallet, Flag, Calendar, MoreHorizontal, MessageSquarePlus,
+  User, Mail, MapPin, Tag, Wallet, Flag, Calendar, MoreHorizontal,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
@@ -31,6 +31,7 @@ import { LEAD_STATUS_ROW_ACCENT } from '../utils/leadDisplay'
 import { notifySlack } from '../services/slackNotify'
 import { defaultLeadFollowUpDate } from '../utils/exportPdf'
 import CrmQuickCaptureModal from '../components/crm/CrmQuickCaptureModal'
+import CrmQuickCaptureBanner from '../components/crm/CrmQuickCaptureBanner'
 
 const emptyForm = {
   client_id: '',
@@ -331,18 +332,9 @@ export default function Leads() {
             <h2 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Leads</h2>
             <p className="mt-1 text-xs text-slate-300 sm:text-sm">Track enquiries, contact details, and opportunities in one place</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => setCaptureOpen(true)}
-              className="!border-violet-300/40 !bg-violet-500/20 !text-white hover:!bg-violet-500/30"
-            >
-              <MessageSquarePlus className="h-4 w-4" /> Quick capture
-            </Button>
-            <Button onClick={openAdd} className="relative shrink-0 shadow-lg shadow-teal-900/30">
-              <Plus className="h-4 w-4" /> Add Lead
-            </Button>
-          </div>
+          <Button onClick={openAdd} className="relative shrink-0 shadow-lg shadow-teal-900/30">
+            <Plus className="h-4 w-4" /> Add Lead
+          </Button>
         </div>
 
         <div className="relative mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -368,6 +360,8 @@ export default function Leads() {
           ))}
         </div>
       </div>
+
+      <CrmQuickCaptureBanner mode="lead" onOpen={() => setCaptureOpen(true)} />
 
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50 p-2 shadow-[0_8px_30px_-20px_rgba(15,23,42,0.25)]">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
@@ -488,6 +482,7 @@ export default function Leads() {
         isOpen={captureOpen}
         onClose={() => setCaptureOpen(false)}
         mode="lead"
+        initialProfile="enquiry"
         onSaved={() => loadData()}
       />
     </div>
