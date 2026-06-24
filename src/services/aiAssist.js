@@ -90,12 +90,12 @@ export async function captureCrmFromAi(text, session, { mode = 'lead', client_ty
   return data.capture || null
 }
 
-export async function askCalendarAssistant(payload, session) {
+async function callDedicatedAiAssist(endpoint, payload, session, label) {
   if (!session?.access_token) {
     throw new Error('You must be signed in to use the AI assistant.')
   }
 
-  const res = await fetch('/api/ai/calendar-assist', {
+  const res = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -118,8 +118,16 @@ export async function askCalendarAssistant(payload, session) {
         'AI API unavailable (502). On local dev, run "npm run dev:api" in a second terminal.',
       )
     }
-    throw new Error(data.error || raw?.slice(0, 200) || `Calendar assistant failed (${res.status})`)
+    throw new Error(data.error || raw?.slice(0, 200) || `${label} failed (${res.status})`)
   }
 
   return data.output
+}
+
+export async function askCalendarAssistant(payload, session) {
+  return callDedicatedAiAssist('/api/ai/calendar-assist', payload, session, 'Calendar assistant')
+}
+
+export async function askTaskAssistant(payload, session) {
+  return callDedicatedAiAssist('/api/ai/task-assist', payload, session, 'Task assistant')
 }

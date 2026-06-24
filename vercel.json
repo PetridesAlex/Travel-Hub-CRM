@@ -78,6 +78,10 @@
       "destination": "/api/ai/assist?route=calendar-assist"
     },
     {
+      "source": "/api/ai/task-assist",
+      "destination": "/api/ai/assist?route=task-assist"
+    },
+    {
       "source": "/api/ai/extract-flight-fields",
       "destination": "/api/ai/extract-template-fields?category=flight_offer"
     },

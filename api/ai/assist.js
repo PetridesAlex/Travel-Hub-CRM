@@ -2,15 +2,20 @@ import { verifySession } from '../../server/lib/verifySession.js'
 import { isOpenAiConfigured, createOpenAiResponse } from '../../server/lib/openaiService.js'
 import { AI_ASSIST_TASKS, buildAssistPrompt } from '../../server/lib/aiAssistPrompts.js'
 import { buildCalendarAssistPrompt } from '../../server/lib/calendarAssistPrompt.js'
+import { buildTaskAssistPrompt } from '../../server/lib/taskAssistPrompt.js'
 import { parseAiFormJson } from '../../server/lib/formImportParse.js'
 import { parseAiCrmCaptureJson } from '../../server/lib/crmCaptureParse.js'
 
-function isCalendarAssistRoute(req) {
+function getAssistRoute(req) {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
-  return url.searchParams.get('route') === 'calendar-assist' || url.pathname.includes('calendar-assist')
+  const route = url.searchParams.get('route')
+  if (route) return route
+  if (url.pathname.includes('calendar-assist')) return 'calendar-assist'
+  if (url.pathname.includes('task-assist')) return 'task-assist'
+  return null
 }
 
-async function handleCalendarAssist(req, res, auth) {
+async function handleRoutedAssist(req, res, buildPrompt, taskName) {
   const body = req.body || {}
   if (!body.message?.trim()) {
     return res.status(400).json({ error: 'message is required.' })
@@ -18,7 +23,7 @@ async function handleCalendarAssist(req, res, auth) {
 
   let promptConfig
   try {
-    promptConfig = buildCalendarAssistPrompt(body)
+    promptConfig = buildPrompt(body)
   } catch (err) {
     return res.status(400).json({ error: err.message })
   }
@@ -31,7 +36,7 @@ async function handleCalendarAssist(req, res, auth) {
 
   return res.status(200).json({
     output: text,
-    task: 'calendar_assist',
+    task: taskName,
     model: raw?.model || undefined,
   })
 }
@@ -50,9 +55,17 @@ export default async function handler(req, res) {
     return res.status(auth.status).json({ error: auth.error })
   }
 
-  if (isCalendarAssistRoute(req)) {
+  const assistRoute = getAssistRoute(req)
+  if (assistRoute === 'calendar-assist') {
     try {
-      return await handleCalendarAssist(req, res, auth)
+      return await handleRoutedAssist(req, res, buildCalendarAssistPrompt, 'calendar_assist')
+    } catch (err) {
+      return res.status(502).json({ error: err.message })
+    }
+  }
+  if (assistRoute === 'task-assist') {
+    try {
+      return await handleRoutedAssist(req, res, buildTaskAssistPrompt, 'task_assist')
     } catch (err) {
       return res.status(502).json({ error: err.message })
     }

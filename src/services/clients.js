@@ -67,8 +67,12 @@ export async function deleteClient(id) {
 export async function getClientRelatedData(clientId) {
   const [leads, quotations, bookings, tasks, voiceNotes] = await Promise.all([
     supabase.from('leads').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
-    supabase.from('quotations').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
-    supabase.from('bookings').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
+    supabase.from('quotations').select('*, leads(destination, travel_type)').eq('client_id', clientId).order('created_at', { ascending: false }),
+    supabase
+      .from('bookings')
+      .select('*, quotations(destination, title, lead_id, leads(destination, travel_type))')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false }),
     supabase.from('tasks').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
     supabase.from('voice_notes').select('*').eq('linked_client_id', clientId).order('created_at', { ascending: false }),
   ])

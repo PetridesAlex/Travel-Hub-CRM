@@ -3,7 +3,7 @@ import {
   Plus, Pencil, Trash2, CheckCircle2, Circle, CheckSquare,
   Clock, AlertTriangle, Search, ArrowUpDown, ChevronDown, Loader2,
   Target, User, Calendar, Sparkles, SlidersHorizontal, MoreHorizontal,
-  ListTodo, Link2, Flag,
+  ListTodo, Link2, Flag, Bot,
 } from 'lucide-react'
 import { differenceInDays, parseISO } from 'date-fns'
 import { useAuth } from '../hooks/useAuth'
@@ -11,11 +11,19 @@ import { useAgency } from '../hooks/useAgency'
 import { getTasks, createTask, updateTask, deleteTask } from '../services/tasks'
 import { getClients } from '../services/clients'
 import { getLeads } from '../services/leads'
+import { askTaskAssistant } from '../services/aiAssist'
+import {
+  buildTaskAiContext,
+  executeTaskAiActions,
+  getTaskSuggestions,
+  parseTaskAiResponse,
+} from '../services/taskActions'
 import Button from '../components/ui/Button'
 import Table from '../components/ui/Table'
 import Modal, { ModalFooter } from '../components/ui/Modal'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
+import AITaskAssistant from '../components/tasks/AITaskAssistant'
 import { TASK_STATUSES } from '../constants/enums'
 import { formatDate, formatClientName, formatClientOptionLabel, getTodayISO, labelFor } from '../utils/format'
 import LeadTableHeader, { PREMIUM_HEADER_CLASS, PREMIUM_CELL_CLASS } from '../components/leads/LeadTableHeader'
@@ -178,7 +186,7 @@ function TasksEmptyState({ filter, onAdd }) {
 }
 
 export default function Tasks() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const { agency } = useAgency()
   const [allTasks, setAllTasks] = useState([])
   const [clients, setClients] = useState([])
@@ -191,6 +199,10 @@ export default function Tasks() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [aiOpen, setAiOpen] = useState(true)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiReply, setAiReply] = useState('')
+  const [aiError, setAiError] = useState('')
 
   const today = getTodayISO()
 
@@ -282,6 +294,70 @@ export default function Tasks() {
       alert(err.message)
     }
   }
+
+  async function handleAiAsk(message) {
+    if (!session?.access_token) {
+      setAiError('You must be signed in to use the AI assistant.')
+      return
+    }
+
+    setAiLoading(true)
+    setAiError('')
+    try {
+      const context = buildTaskAiContext(allTasks, clients, leads, today)
+      const raw = await askTaskAssistant({
+        message,
+        today,
+        agency_name: agency?.name || '',
+        ...context,
+      }, session)
+
+      const parsed = parseTaskAiResponse(raw)
+      let reply = parsed.reply || raw
+
+      if (parsed.actions?.length && user?.id && agency?.id) {
+        const creates = parsed.actions.filter((a) => a.type === 'create_task')
+        const needsConfirm = parsed.actions.length > 2
+          || creates.length > 1
+        if (!needsConfirm || confirm(`Apply ${parsed.actions.length} task change(s)?`)) {
+          const results = await executeTaskAiActions(parsed.actions, {
+            userId: user.id,
+            agencyId: agency.id,
+          })
+          await loadData()
+
+          const applied = results.filter((r) => r.ok)
+          const failed = results.filter((r) => !r.ok)
+          if (applied.length > 0) {
+            const created = applied.filter((r) => r.type === 'create_task')
+            const updated = applied.filter((r) => r.type !== 'create_task')
+            const parts = []
+            if (created.length) {
+              parts.push(`Created ${created.length} task${created.length > 1 ? 's' : ''}: ${created.map((r) => r.title).join(', ')}`)
+            }
+            if (updated.length) {
+              parts.push(`Updated ${updated.length} task${updated.length > 1 ? 's' : ''}`)
+            }
+            reply += `\n\n✓ ${parts.join('. ')}.`
+          }
+          if (failed.length) {
+            reply += `\n\n⚠ ${failed.length} action(s) could not be applied: ${failed.map((r) => r.error).join('; ')}.`
+          }
+        }
+      }
+
+      setAiReply(reply)
+    } catch (err) {
+      setAiError(err.message)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const aiSuggestions = useMemo(
+    () => getTaskSuggestions(allTasks, today),
+    [allTasks, today],
+  )
 
   const filterCounts = useMemo(() => ({
     all: allTasks.length,
@@ -466,9 +542,19 @@ export default function Tasks() {
               Stay on top of client callbacks, lead follow-ups, and booking deadlines — never miss a beat
             </p>
           </div>
-          <Button onClick={openAdd} className="shrink-0 shadow-lg shadow-sky-900/30">
-            <Plus className="h-4 w-4" /> Add Task
-          </Button>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setAiOpen((v) => !v)}
+              className="border-white/20 bg-white/10 text-white hover:bg-white/20"
+            >
+              <Bot className="h-4 w-4" />
+              {aiOpen ? 'Hide AI' : 'AI Assistant'}
+            </Button>
+            <Button onClick={openAdd} className="shadow-lg shadow-sky-900/30">
+              <Plus className="h-4 w-4" /> Add Task
+            </Button>
+          </div>
         </div>
         <div className="relative mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
@@ -488,6 +574,8 @@ export default function Tasks() {
         </div>
       </div>
 
+      <div className={`grid gap-5 sm:gap-6 ${aiOpen ? 'lg:grid-cols-[1fr_320px]' : ''}`}>
+        <div className="min-w-0 space-y-5 sm:space-y-6">
       {/* Filter tabs */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 p-2 shadow-[0_8px_30px_-20px_rgba(15,23,42,0.2)]">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-500/40 to-transparent" />
@@ -615,6 +703,20 @@ export default function Tasks() {
           getRowClassName={(row) => (isTaskOverdue(row) ? 'bg-rose-50/40' : '')}
         />
       )}
+        </div>
+
+        {aiOpen && (
+          <div className="min-h-[28rem] lg:sticky lg:top-4 lg:self-start">
+            <AITaskAssistant
+              suggestions={aiSuggestions}
+              onAsk={handleAiAsk}
+              loading={aiLoading}
+              lastReply={aiReply}
+              error={aiError}
+            />
+          </div>
+        )}
+      </div>
 
       <Modal
         isOpen={modalOpen}

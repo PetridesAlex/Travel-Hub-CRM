@@ -20,6 +20,7 @@ const apiRoutes = {
   '/api/ai/generate': generateHandler,
   '/api/ai/assist': assistHandler,
   '/api/ai/calendar-assist': assistHandler,
+  '/api/ai/task-assist': assistHandler,
   '/api/ai/voice-program': voiceProgramHandler,
   '/api/ai/extract-flight-fields': async (req, res) => {
     req.body = { ...req.body, category: 'flight_offer' }

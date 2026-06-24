@@ -8,7 +8,9 @@ import {
 import { getClient, getClientRelatedData } from '../services/clients'
 import Button from '../components/ui/Button'
 import Badge from '../components/ui/Badge'
+import ClientTimeline from '../components/clients/ClientTimeline'
 import { formatDate, formatCurrency, formatDateTime, labelFor, formatClientName } from '../utils/format'
+import { buildClientTimeline, buildClientInsights } from '../utils/clientTimeline'
 import {
   LEAD_STATUSES, QUOTATION_STATUSES, BOOKING_STATUSES, TRAVEL_TYPES, CLIENT_TYPES,
 } from '../constants/enums'
@@ -124,6 +126,22 @@ export default function ClientProfile() {
     [related],
   )
 
+  const timeline = useMemo(
+    () => buildClientTimeline(related),
+    [related],
+  )
+
+  const insights = useMemo(
+    () => buildClientInsights(related),
+    [related],
+  )
+
+  function handleTimelineSelect(entry) {
+    const tabMap = { booking: 'bookings', quotation: 'quotations', lead: 'leads' }
+    const tab = tabMap[entry.sourceType]
+    if (tab) setActiveTab(tab)
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -230,6 +248,13 @@ export default function ClientProfile() {
           </div>
         </div>
       </div>
+
+      <ClientTimeline
+        clientName={displayName}
+        timeline={timeline}
+        insights={insights}
+        onSelectEntry={handleTimelineSelect}
+      />
 
       {/* Contact details */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
