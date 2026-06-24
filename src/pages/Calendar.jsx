@@ -15,7 +15,7 @@ import {
   executeCalendarAiActions,
   parseCalendarAiResponse,
 } from '../services/calendarActions'
-import { updateTask } from '../services/tasks'
+import { updateTask, deleteTask } from '../services/tasks'
 import { askCalendarAssistant } from '../services/aiAssist'
 import { CALENDAR_FILTERS } from '../constants/calendarConstants'
 import {
@@ -127,10 +127,22 @@ export default function Calendar() {
   }
 
   async function handleDeleteEvent(event) {
-    if (!event.deletable || event.sourceType !== 'calendar_event') return
-    if (!confirm('Delete this calendar event?')) return
+    if (!event.deletable) return
+
+    const confirmMessages = {
+      calendar_event: 'Delete this calendar event?',
+      task: 'Delete this task? It will be removed from your task list as well.',
+    }
+    const message = confirmMessages[event.sourceType]
+    if (!message) return
+    if (!confirm(message)) return
+
     try {
-      await deleteCalendarEvent(event.sourceId)
+      if (event.sourceType === 'calendar_event') {
+        await deleteCalendarEvent(event.sourceId)
+      } else if (event.sourceType === 'task') {
+        await deleteTask(event.sourceId)
+      }
       setSelectedEvent(null)
       await loadEvents()
     } catch (err) {
