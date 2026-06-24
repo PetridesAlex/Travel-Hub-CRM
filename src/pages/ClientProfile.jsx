@@ -216,7 +216,7 @@ export default function ClientProfile() {
             <div className="flex flex-wrap gap-2 lg:justify-end">
               <Link to={`/leads?client=${id}`}>
                 <Button variant="secondary" size="sm" className="!border-white/20 !bg-white/10 !text-white hover:!bg-white/20">
-                  <Target className="h-4 w-4" /> Add lead
+                  <Target className="h-4 w-4" /> Create lead
                 </Button>
               </Link>
               <Link to={`/quotations?client=${id}`}>

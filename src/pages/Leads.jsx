@@ -84,7 +84,8 @@ export default function Leads() {
   const { user, session } = useAuth()
   const { agency } = useAgency()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const clientIdFromUrl = searchParams.get('client')
   const [allLeads, setAllLeads] = useState([])
   const [clients, setClients] = useState([])
   const [filters, setFilters] = useState({ status: '', travel_type: '' })
@@ -100,12 +101,23 @@ export default function Leads() {
   }, [filters.travel_type])
 
   useEffect(() => {
-    const clientId = searchParams.get('client')
-    if (clientId) {
-      setForm((f) => ({ ...f, client_id: clientId }))
-      setModalOpen(true)
+    if (!clientIdFromUrl) return
+    const client = clients.find((c) => c.id === clientIdFromUrl)
+    setEditing(null)
+    setForm({
+      ...emptyForm,
+      client_id: clientIdFromUrl,
+      notes: client?.notes || '',
+    })
+    setModalOpen(true)
+  }, [clientIdFromUrl, clients])
+
+  function closeLeadModal() {
+    setModalOpen(false)
+    if (clientIdFromUrl) {
+      setSearchParams({}, { replace: true })
     }
-  }, [searchParams])
+  }
 
   async function loadData() {
     try {
@@ -194,6 +206,9 @@ export default function Leads() {
         }
       }
       setModalOpen(false)
+      if (clientIdFromUrl) {
+        setSearchParams({}, { replace: true })
+      }
       loadData()
     } catch (err) {
       alert(err.message)
@@ -216,6 +231,11 @@ export default function Leads() {
 
   const linkedClientForForm = clients.find((c) => c.id === form.client_id)
   const contactClient = editing?.clients || linkedClientForForm
+  const leadModalTitle = editing
+    ? 'Edit Lead'
+    : linkedClientForForm
+      ? `Create lead for ${formatClientName(linkedClientForForm)}`
+      : 'Add Lead'
 
   const leads = useMemo(() => {
     if (!filters.status) return allLeads
@@ -438,9 +458,9 @@ export default function Leads() {
 
       <Modal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? 'Edit Lead' : 'Add Lead'}
-        footer={<ModalFooter onCancel={() => setModalOpen(false)} onSave={handleSave} saving={saving} />}
+        onClose={closeLeadModal}
+        title={leadModalTitle}
+        footer={<ModalFooter onCancel={closeLeadModal} onSave={handleSave} saving={saving} />}
       >
         <div className="space-y-3">
           {contactClient && (

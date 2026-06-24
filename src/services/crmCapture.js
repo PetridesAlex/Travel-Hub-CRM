@@ -4,6 +4,7 @@ import { createLead, updateLead } from './leads'
 import { createTask } from './tasks'
 import { captureCrmFromAi, isAiAvailable } from './aiAssist'
 import { parseCrmCaptureFromText } from '../utils/parseCrmCaptureText'
+import { enrichCaptureWithSourceNotes } from '../../shared/crmCapture.js'
 import { notifySlack } from './slackNotify'
 import { formatClientName } from '../utils/format'
 import { defaultLeadFollowUpDate } from '../utils/exportPdf'
@@ -15,7 +16,8 @@ export async function extractCrmCapture(text, session, { mode = 'lead', useAi = 
   const options = { clientTypeHint: clientType }
 
   if (!useAi) {
-    return parseCrmCaptureFromText(trimmed, mode, options)
+    const local = parseCrmCaptureFromText(trimmed, mode, options)
+    return enrichCaptureWithSourceNotes(local, trimmed)
   }
 
   if (!isAiAvailable(session)) {
@@ -25,7 +27,7 @@ export async function extractCrmCapture(text, session, { mode = 'lead', useAi = 
   try {
     const capture = await captureCrmFromAi(trimmed, session, { mode, client_type: clientType })
     if (!capture) throw new Error('AI returned empty data. Try again or use quick parse.')
-    return { ...capture, _fallbackNote: null }
+    return enrichCaptureWithSourceNotes({ ...capture, _fallbackNote: null }, trimmed)
   } catch (err) {
     const msg = err.message || ''
     const canFallback =
@@ -39,7 +41,7 @@ export async function extractCrmCapture(text, session, { mode = 'lead', useAi = 
     if (canFallback) {
       const local = parseCrmCaptureFromText(trimmed, mode, options)
       return {
-        ...local,
+        ...enrichCaptureWithSourceNotes(local, trimmed),
         _fallbackNote: 'AI was unavailable — used quick parse. Check the preview before saving.',
       }
     }

@@ -1,4 +1,4 @@
-import { normalizeCrmCapturePayload } from '../../shared/crmCapture.js'
+import { normalizeCrmCapturePayload, buildNotesFromStructuredText } from '../../shared/crmCapture.js'
 
 const TRAVEL_KEYWORDS = [
   { type: 'cruise', pattern: /\b(cruise|msc|ferry)\b/i },
@@ -91,8 +91,15 @@ function inferDestination(text) {
 }
 
 function inferBudget(text) {
-  const labeled = extractLabel(text, ['budget', 'price range', 'max budget'])
-  const source = labeled || text
+  const budgetLine = text.match(/(?:budget|price range|max budget)\s*[:=]\s*([^\n]+)/i)?.[1]?.trim()
+  const source = budgetLine || text
+  const rangeMatch = source.match(
+    /(?:€|eur|euro|£|gbp|\$|usd)?\s*([\d,.]+)\s*[–—-]\s*(?:€|eur|euro|£|gbp|\$|usd)?\s*([\d,.]+)/i,
+  )
+  if (rangeMatch?.[2]) {
+    const high = Number(rangeMatch[2].replace(/,/g, ''))
+    if (Number.isFinite(high) && high > 0) return high
+  }
   const match =
     source.match(/(?:€|eur|euro|£|gbp|\$|usd)\s*([\d,.]+)/i) ||
     source.match(/([\d,.]+)\s*(?:€|eur|euros?|£|gbp|\$|usd)/i) ||
@@ -114,10 +121,20 @@ export function parseCrmCaptureFromText(text, mode = 'lead', options = {}) {
   const companyName = clientType === 'business' ? inferCompanyName(trimmed) : null
   const destination = inferDestination(trimmed)
   const budget = inferBudget(trimmed)
-  const travelDates = extractLabel(trimmed, ['travel dates', 'dates', 'when', 'departure'])
+  const travelDates =
+    extractLabel(trimmed, ['travel dates', 'dates', 'when', 'departure', 'travel month']) ||
+    extractLabel(trimmed, ['Travel Month'])
   const adultsMatch = trimmed.match(/(\d+)\s+adults?/i)
   const childrenMatch = trimmed.match(/(\d+)\s+(?:children|kids)/i)
-  const hasTrip = Boolean(destination || budget || travelDates)
+  const hasTrip = Boolean(
+    destination ||
+      budget ||
+      travelDates ||
+      /\bTRIP\s+BRIEF\b/i.test(trimmed) ||
+      /\bMUST[- ]HAVES?\b/i.test(trimmed),
+  )
+
+  const { clientNotes, leadNotes } = buildNotesFromStructuredText(trimmed)
 
   const payload = {
     intent:
@@ -136,7 +153,7 @@ export function parseCrmCaptureFromText(text, mode = 'lead', options = {}) {
       email,
       phone,
       nationality: extractLabel(trimmed, ['nationality', 'country']),
-      notes: extractLabel(trimmed, ['notes', 'description', 'comments']) || null,
+      notes: clientNotes || extractLabel(trimmed, ['notes', 'description', 'comments']) || null,
     },
     lead:
       mode === 'lead' && hasTrip
@@ -148,7 +165,7 @@ export function parseCrmCaptureFromText(text, mode = 'lead', options = {}) {
             number_of_children: childrenMatch ? Number(childrenMatch[1]) : 0,
             travel_dates: travelDates,
             status: 'new',
-            notes: trimmed.length > 200 ? `${trimmed.slice(0, 200)}…` : trimmed,
+            notes: leadNotes || null,
             follow_up_date: null,
           }
         : null,

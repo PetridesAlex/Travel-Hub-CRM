@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Pencil, Trash2, User, Building2, Users, SlidersHorizontal,
   Search, ArrowUpDown, Globe, ChevronDown, X, Sparkles, Loader2,
-  Phone, MoreHorizontal, UserCircle,
+  Phone, MoreHorizontal, UserCircle, Target,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
@@ -277,6 +277,10 @@ export default function Clients() {
     }
   }
 
+  function createLeadForClient(client) {
+    navigate(`/leads?client=${client.id}`)
+  }
+
   const counts = useMemo(() => {
     const individual = allClients.filter((c) => (c.client_type || 'individual') === 'individual').length
     const business = allClients.filter((c) => c.client_type === 'business').length
@@ -375,6 +379,15 @@ export default function Clients() {
       cellClassName: `${PREMIUM_CELL_CLASS} w-[1%] whitespace-nowrap`,
       render: (row) => (
         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => createLeadForClient(row)}
+            className="rounded-lg border border-transparent p-2 text-slate-400 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+            aria-label={`Create lead for ${getClientPrimaryName(row)}`}
+            title="Create lead"
+          >
+            <Target className="h-4 w-4" />
+          </button>
           <button
             type="button"
             onClick={() => openEdit(row)}

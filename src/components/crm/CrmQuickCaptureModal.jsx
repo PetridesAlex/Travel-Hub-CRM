@@ -14,7 +14,7 @@ import { CAPTURE_PROFILES, getCaptureProfile } from '../../constants/crmCaptureT
 
 const PROFILE_ICONS = { user: User, building: Building2, target: Target }
 
-function PreviewRow({ icon: Icon, label, value }) {
+function PreviewRow({ icon: Icon, label, value, multiline = false }) {
   if (!value) return null
   return (
     <div className="flex items-start gap-3 py-2">
@@ -23,7 +23,7 @@ function PreviewRow({ icon: Icon, label, value }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p>
-        <p className="text-sm font-medium text-slate-800">{value}</p>
+        <p className={`text-sm font-medium text-slate-800 ${multiline ? 'whitespace-pre-wrap' : ''}`}>{value}</p>
       </div>
     </div>
   )
@@ -67,7 +67,7 @@ function CapturePreview({ capture, matchedClient, mode }) {
             <PreviewRow icon={Building2} label="Company" value={client.company_name} />
             <PreviewRow icon={Mail} label="Email" value={client.email} />
             <PreviewRow icon={Phone} label="Phone" value={client.phone} />
-            {client.notes && <PreviewRow icon={Sparkles} label="Notes" value={client.notes} />}
+            {client.notes && <PreviewRow icon={Sparkles} label="Notes" value={client.notes} multiline />}
           </div>
         )}
 
@@ -85,7 +85,7 @@ function CapturePreview({ capture, matchedClient, mode }) {
               value={`${lead.number_of_adults} adult${lead.number_of_adults === 1 ? '' : 's'}${lead.number_of_children ? `, ${lead.number_of_children} child${lead.number_of_children === 1 ? '' : 'ren'}` : ''}`}
             />
             <PreviewRow icon={Calendar} label="Dates" value={lead.travel_dates} />
-            {lead.notes && <PreviewRow icon={Sparkles} label="Notes" value={lead.notes} />}
+            {lead.notes && <PreviewRow icon={Sparkles} label="Notes" value={lead.notes} multiline />}
           </div>
         )}
       </div>

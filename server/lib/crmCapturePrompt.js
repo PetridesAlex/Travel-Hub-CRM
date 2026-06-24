@@ -59,7 +59,13 @@ Rules:
 - Use null for unknown fields — never use placeholder text like "N/A".
 - For business/corporate: company_name = organisation, full_name = contact person name.
 - Put conversational context in notes only when useful.
-- follow_up_date only when a specific follow-up day is mentioned; otherwise null.`,
+- follow_up_date only when a specific follow-up day is mentioned; otherwise null.
+
+IMPORTANT — NOTES FIELDS (preserve line breaks and bullet lists):
+- client.notes: departure city/country, traveller preferences, and any client-specific remarks NOT already stored in name/email/phone.
+- lead.notes: the full trip brief — travel month, hotel category, travel style, room allocation, must-haves, theme parks, transfers, breakfast, and every requirement from sections like "TRIP BRIEF", "Must-Haves", "Room Allocation".
+- Copy structured enquiry text into lead.notes faithfully; use \\n for new lines. Do NOT summarise away important details.
+- Budget ranges like "€1,800 – €3,500" go in budget (use the upper figure as number) AND repeat the range in lead.notes.`,
     input: `Extract CRM data from this message:\n\n${text}`,
     temperature: 0.15,
   }
