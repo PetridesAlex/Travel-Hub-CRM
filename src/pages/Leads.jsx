@@ -285,9 +285,9 @@ export default function Leads() {
     {
       key: 'destination',
       label: 'Destination',
-      headerClassName: PREMIUM_HEADER_CLASS_DARK,
+      headerClassName: `${PREMIUM_HEADER_CLASS_DARK} min-w-[12rem]`,
       headerRender: () => <LeadTableHeader icon={MapPin} label="Destination" accent="gradient" />,
-      cellClassName: PREMIUM_CELL_CLASS,
+      cellClassName: `${PREMIUM_CELL_CLASS} min-w-[12rem] align-top`,
       render: (row) => <LeadInquiryCell lead={row} />,
     },
     {

@@ -65,14 +65,13 @@ const ACTIVITY_THEMES = {
 
 function getActivityContent(item) {
   if (item.type === 'Lead') {
-    const { title, origin, channel } = getLeadInquiryDisplay({
+    const { title, sourceLabel } = getLeadInquiryDisplay({
       destination: item.label,
       notes: item.notes,
     })
-    const subtitle = [origin, channel !== origin ? channel : ''].filter(Boolean).join(' · ')
     return {
       title,
-      subtitle: subtitle || item.subtitle || 'Website enquiry',
+      subtitle: sourceLabel || item.subtitle || 'Website enquiry',
     }
   }
 

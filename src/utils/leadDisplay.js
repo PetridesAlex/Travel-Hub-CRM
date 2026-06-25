@@ -4,8 +4,56 @@ const GENERIC_DESTINATIONS = new Set([
   'general inquiry',
 ])
 
+const DESTINATION_LABEL_RE =
+  /^(?:προορισμός|destination|where|travel to|location|country|trip to|τοποθεσία)\s*[:=]\s*/iu
+
+const BOILERPLATE_RE =
+  /\b(build your trip request|website inquiry|general enquiry|general inquiry|hone?ywell travel)\b/gi
+
 function cleanLine(value) {
   return String(value || '').replace(/\s+/g, ' ').trim()
+}
+
+function titleCase(value) {
+  const text = cleanLine(value)
+  if (!text) return ''
+  return text
+    .split(/\s+/)
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : ''))
+    .join(' ')
+}
+
+export function normalizeLeadDestination(raw = '') {
+  let text = cleanLine(raw)
+  if (!text) return ''
+
+  const dashParts = text.split(/\s*---\s*/).map(cleanLine).filter(Boolean)
+  if (dashParts.length > 1) {
+    text = dashParts[0]
+  }
+
+  text = text.replace(DESTINATION_LABEL_RE, '')
+  text = text.replace(/\s+CRM\s*$/i, '')
+  text = cleanLine(text)
+
+  return titleCase(text)
+}
+
+function splitDestinationBlob(raw = '') {
+  const parts = String(raw || '').split(/\s*---\s*/).map(cleanLine).filter(Boolean)
+  if (parts.length <= 1) {
+    return {
+      destination: normalizeLeadDestination(raw),
+      inquiryType: '',
+      sourceHint: '',
+    }
+  }
+
+  return {
+    destination: normalizeLeadDestination(parts[0]),
+    inquiryType: cleanLine(parts[1] || '').replace(BOILERPLATE_RE, '').trim() || parts[1] || '',
+    sourceHint: cleanLine(parts.slice(2).join(' · ') || ''),
+  }
 }
 
 function parseNotesField(notes, field) {
@@ -26,19 +74,21 @@ export function parseLeadNotes(notes = '') {
     .filter(Boolean)
     .filter((line) => !/^(source|email|phone|package)\s*[:=]/i.test(line))
     .filter((line) => !line.startsWith('--- Original email ---'))
+    .filter((line) => !BOILERPLATE_RE.test(line))
 
   const messagePreview = cleanLine(bodyLines[0] || '')
 
   return { source, packageName, email, phone, messagePreview }
 }
 
-function parseSourceMeta(source = '') {
-  const raw = cleanLine(source)
+function parseSourceMeta(source = '', sourceHint = '') {
+  const raw = cleanLine(source) || cleanLine(sourceHint)
   if (!raw) {
     return {
       origin: 'CRM',
       channel: 'Manual entry',
       tone: 'manual',
+      label: 'Manual entry',
     }
   }
 
@@ -49,114 +99,133 @@ function parseSourceMeta(source = '') {
   let origin = originRaw
   if (/honeywell/i.test(originRaw) || /honeywelltravel\.com/i.test(originRaw)) {
     origin = 'Honeywell Travel'
-  } else if (/website/i.test(originRaw)) {
+  } else if (/^website$/i.test(originRaw) || /website/i.test(originRaw)) {
     origin = 'Website'
+  } else if (/^crm$/i.test(originRaw)) {
+    origin = 'CRM'
   }
 
-  const channel = channelRaw || originRaw
+  const channel = channelRaw || ''
+  let label = origin
+  if (channel && channel !== origin && !/^manual/i.test(channel)) {
+    label = `${origin} · ${channel}`
+  } else if (origin === 'CRM') {
+    label = 'Manual entry'
+  }
 
   let tone = 'website'
-  if (/contact/i.test(channel)) tone = 'contact'
-  else if (/package/i.test(channel)) tone = 'package'
-  else if (/cruise/i.test(channel)) tone = 'cruise'
-  else if (/book online|flight/i.test(channel)) tone = 'flight'
-  else if (/honeymoon/i.test(channel)) tone = 'honeymoon'
-  else if (/email/i.test(channel)) tone = 'email'
+  if (origin === 'CRM' || /^manual/i.test(channel)) tone = 'manual'
+  else if (/contact/i.test(channel) || /contact/i.test(originRaw)) tone = 'contact'
+  else if (/package/i.test(channel) || /package/i.test(originRaw)) tone = 'package'
+  else if (/cruise/i.test(channel) || /cruise/i.test(originRaw)) tone = 'cruise'
+  else if (/book online|flight/i.test(channel) || /flight/i.test(originRaw)) tone = 'flight'
+  else if (/honeymoon/i.test(channel) || /honeymoon/i.test(originRaw)) tone = 'honeymoon'
+  else if (/email/i.test(channel) || /email/i.test(originRaw)) tone = 'email'
 
-  return { origin, channel, tone }
+  return { origin, channel, tone, label }
+}
+
+function buildMetaLine(lead = {}) {
+  const parts = []
+  if (lead.travel_dates) parts.push(cleanLine(lead.travel_dates))
+
+  if (lead.budget != null && Number(lead.budget) > 0) {
+    const amount = Number(lead.budget)
+    parts.push(`€${amount.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`)
+  }
+
+  const adults = Number(lead.number_of_adults) || 0
+  const children = Number(lead.number_of_children) || 0
+  if (adults > 0 || children > 0) {
+    const travellerParts = []
+    if (adults > 0) travellerParts.push(`${adults} adult${adults === 1 ? '' : 's'}`)
+    if (children > 0) travellerParts.push(`${children} child${children === 1 ? '' : 'ren'}`)
+    parts.push(travellerParts.join(', '))
+  }
+
+  return parts.join(' · ')
+}
+
+function cleanContextLine(value) {
+  const text = cleanLine(value)
+  if (!text) return ''
+  if (/^build your trip request$/i.test(text)) return 'Trip request'
+  return text.length > 96 ? `${text.slice(0, 93)}…` : text
 }
 
 export function getLeadInquiryDisplay(lead = {}) {
   const { source, packageName, messagePreview } = parseLeadNotes(lead.notes)
-  const destination = cleanLine(lead.destination)
+  const { destination, inquiryType, sourceHint } = splitDestinationBlob(lead.destination)
   const destinationIsGeneric = !destination || GENERIC_DESTINATIONS.has(destination.toLowerCase())
 
   const title = !destinationIsGeneric
     ? destination
-    : packageName || messagePreview || 'General enquiry'
+    : normalizeLeadDestination(packageName) || cleanContextLine(messagePreview) || 'General enquiry'
 
-  const subtitle = !destinationIsGeneric && packageName && packageName !== destination
-    ? packageName
-    : messagePreview && messagePreview !== title
-      ? messagePreview
-      : ''
+  const contextCandidates = [
+    !destinationIsGeneric ? cleanContextLine(inquiryType) : '',
+    !destinationIsGeneric && packageName && packageName !== destination ? packageName : '',
+    messagePreview && messagePreview !== title ? messagePreview : '',
+  ].filter(Boolean)
 
-  const sourceMeta = parseSourceMeta(source)
+  const context = contextCandidates[0] || ''
+  const metaLine = buildMetaLine(lead)
+  const sourceMeta = parseSourceMeta(source, sourceHint)
 
   return {
     title,
-    subtitle: subtitle.length > 72 ? `${subtitle.slice(0, 69)}…` : subtitle,
-    ...sourceMeta,
+    context,
+    metaLine,
+    sourceLabel: sourceMeta.label,
+    origin: sourceMeta.origin,
+    channel: sourceMeta.channel,
+    tone: sourceMeta.tone,
   }
 }
 
 export const LEAD_SOURCE_TONES = {
-  website: 'bg-teal-50 text-teal-800 ring-teal-200/80',
-  contact: 'bg-sky-50 text-sky-800 ring-sky-200/80',
-  package: 'bg-violet-50 text-violet-800 ring-violet-200/80',
-  cruise: 'bg-indigo-50 text-indigo-800 ring-indigo-200/80',
-  flight: 'bg-cyan-50 text-cyan-800 ring-cyan-200/80',
-  honeymoon: 'bg-rose-50 text-rose-800 ring-rose-200/80',
-  email: 'bg-amber-50 text-amber-800 ring-amber-200/80',
-  manual: 'bg-slate-100 text-slate-600 ring-slate-200/80',
+  website: 'bg-teal-50 text-teal-800 ring-teal-200/70',
+  contact: 'bg-sky-50 text-sky-800 ring-sky-200/70',
+  package: 'bg-violet-50 text-violet-800 ring-violet-200/70',
+  cruise: 'bg-indigo-50 text-indigo-800 ring-indigo-200/70',
+  flight: 'bg-cyan-50 text-cyan-800 ring-cyan-200/70',
+  honeymoon: 'bg-rose-50 text-rose-800 ring-rose-200/70',
+  email: 'bg-amber-50 text-amber-800 ring-amber-200/70',
+  manual: 'bg-slate-100 text-slate-600 ring-slate-200/70',
 }
 
 export const LEAD_INQUIRY_THEMES = {
   website: {
-    card: 'border-teal-200/70 bg-gradient-to-br from-teal-50/90 via-white to-emerald-50/50 shadow-[0_4px_14px_-8px_rgba(20,184,166,0.45)]',
-    accent: 'bg-gradient-to-b from-teal-400 to-emerald-500',
-    iconWrap: 'bg-teal-100 text-teal-700 ring-teal-200/80',
-    title: 'text-teal-950',
-    channel: 'bg-teal-100/90 text-teal-800 ring-teal-200/70',
+    icon: 'text-teal-600',
+    dot: 'bg-teal-500',
   },
   contact: {
-    card: 'border-sky-200/70 bg-gradient-to-br from-sky-50/90 via-white to-blue-50/50 shadow-[0_4px_14px_-8px_rgba(14,165,233,0.4)]',
-    accent: 'bg-gradient-to-b from-sky-400 to-blue-500',
-    iconWrap: 'bg-sky-100 text-sky-700 ring-sky-200/80',
-    title: 'text-sky-950',
-    channel: 'bg-sky-100/90 text-sky-800 ring-sky-200/70',
+    icon: 'text-sky-600',
+    dot: 'bg-sky-500',
   },
   package: {
-    card: 'border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-fuchsia-50/40 shadow-[0_4px_14px_-8px_rgba(139,92,246,0.4)]',
-    accent: 'bg-gradient-to-b from-violet-400 to-fuchsia-500',
-    iconWrap: 'bg-violet-100 text-violet-700 ring-violet-200/80',
-    title: 'text-violet-950',
-    channel: 'bg-violet-100/90 text-violet-800 ring-violet-200/70',
+    icon: 'text-violet-600',
+    dot: 'bg-violet-500',
   },
   cruise: {
-    card: 'border-indigo-200/70 bg-gradient-to-br from-indigo-50/90 via-white to-blue-50/40 shadow-[0_4px_14px_-8px_rgba(99,102,241,0.4)]',
-    accent: 'bg-gradient-to-b from-indigo-400 to-blue-600',
-    iconWrap: 'bg-indigo-100 text-indigo-700 ring-indigo-200/80',
-    title: 'text-indigo-950',
-    channel: 'bg-indigo-100/90 text-indigo-800 ring-indigo-200/70',
+    icon: 'text-indigo-600',
+    dot: 'bg-indigo-500',
   },
   flight: {
-    card: 'border-cyan-200/70 bg-gradient-to-br from-cyan-50/90 via-white to-sky-50/40 shadow-[0_4px_14px_-8px_rgba(6,182,212,0.4)]',
-    accent: 'bg-gradient-to-b from-cyan-400 to-sky-500',
-    iconWrap: 'bg-cyan-100 text-cyan-700 ring-cyan-200/80',
-    title: 'text-cyan-950',
-    channel: 'bg-cyan-100/90 text-cyan-800 ring-cyan-200/70',
+    icon: 'text-cyan-600',
+    dot: 'bg-cyan-500',
   },
   honeymoon: {
-    card: 'border-rose-200/70 bg-gradient-to-br from-rose-50/90 via-white to-pink-50/40 shadow-[0_4px_14px_-8px_rgba(244,63,94,0.35)]',
-    accent: 'bg-gradient-to-b from-rose-400 to-pink-500',
-    iconWrap: 'bg-rose-100 text-rose-700 ring-rose-200/80',
-    title: 'text-rose-950',
-    channel: 'bg-rose-100/90 text-rose-800 ring-rose-200/70',
+    icon: 'text-rose-600',
+    dot: 'bg-rose-500',
   },
   email: {
-    card: 'border-amber-200/70 bg-gradient-to-br from-amber-50/90 via-white to-orange-50/40 shadow-[0_4px_14px_-8px_rgba(245,158,11,0.35)]',
-    accent: 'bg-gradient-to-b from-amber-400 to-orange-500',
-    iconWrap: 'bg-amber-100 text-amber-700 ring-amber-200/80',
-    title: 'text-amber-950',
-    channel: 'bg-amber-100/90 text-amber-800 ring-amber-200/70',
+    icon: 'text-amber-600',
+    dot: 'bg-amber-500',
   },
   manual: {
-    card: 'border-slate-200/80 bg-gradient-to-br from-slate-50/90 via-white to-slate-100/50 shadow-[0_4px_14px_-8px_rgba(100,116,139,0.25)]',
-    accent: 'bg-gradient-to-b from-slate-400 to-slate-500',
-    iconWrap: 'bg-slate-100 text-slate-600 ring-slate-200/80',
-    title: 'text-slate-900',
-    channel: 'bg-slate-100 text-slate-700 ring-slate-200/70',
+    icon: 'text-slate-500',
+    dot: 'bg-slate-400',
   },
 }
 
