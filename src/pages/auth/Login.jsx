@@ -8,6 +8,17 @@ import AuthLayout from '../../components/auth/AuthLayout'
 import AuthSubmitButton from '../../components/auth/AuthSubmitButton'
 import AppLoadingScreen from '../../components/loading/AppLoadingScreen'
 
+function hasInviteTokens() {
+  const hash = window.location.hash || ''
+  const search = window.location.search || ''
+  return (
+    hash.includes('type=invite') ||
+    hash.includes('type=recovery') ||
+    hash.includes('access_token=') ||
+    search.includes('code=')
+  )
+}
+
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,7 +29,13 @@ export default function Login() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!authLoading && user && !launching) navigate('/dashboard')
+    if (hasInviteTokens()) {
+      navigate(`/accept-invite${window.location.search}${window.location.hash}`, { replace: true })
+    }
+  }, [navigate])
+
+  useEffect(() => {
+    if (!authLoading && user && !launching && !hasInviteTokens()) navigate('/dashboard')
   }, [user, authLoading, launching, navigate])
 
   if (authLoading) return null

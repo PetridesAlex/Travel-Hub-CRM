@@ -28,7 +28,14 @@ Honeywell Travel employees share **one agency** — they do not get a separate "
 4. They accept the invite email and set a password
 5. They (or you at invite time) can set their display name — it appears in the header and on the Team list
 
-New employees receive a branded invite email from Honeywell (via Resend) with the agency logo and a button to set their password. Resend must be configured under **Settings → Integrations**. If Resend is not set up, a standard Supabase invite email is sent instead.
+New employees receive a branded invite email from Honeywell (via Resend) with the agency logo and a button to set their password. Configure Resend under **Settings → Integrations**, or set `RESEND_API_KEY` + `RESEND_FROM_EMAIL` on Vercel.
+
+In Supabase → Authentication → URL Configuration, allow redirect:
+`https://travel-hub-crm.vercel.app/accept-invite`
+
+They open the link → **Accept invite** page → create password → shared Honeywell dashboard.
+
+Old Supabase “You’ve been invited” emails are not used anymore — delete pending invites and send a new one after this deploy.
 
 ### If someone already self-registered
 

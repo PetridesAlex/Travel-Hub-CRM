@@ -1,7 +1,6 @@
 import { writeAuditLog } from './auditLog.js'
 import { canManageAgency } from './resolveUserAgency.js'
-import { sendResendEmail } from './resendService.js'
-import { getDecryptedResendApiKey } from './agencyIntegrations.js'
+import { sendResendEmailWithFallback } from './resendService.js'
 import {
   buildTeamInviteEmailHtml,
   buildTeamInviteEmailText,
@@ -193,11 +192,6 @@ async function sendBrandedInviteEmail(admin, {
   role,
   inviterEmail,
 }) {
-  const apiKey = await getDecryptedResendApiKey(admin, agency.id)
-  if (!apiKey || !agency.resend_from_email) {
-    return { ok: false, skipped: true }
-  }
-
   const appUrl = getAppBaseUrl()
   const logoUrl = resolveInviteLogoAbsoluteUrl(agency, appUrl)
   const html = buildTeamInviteEmailHtml({
@@ -216,7 +210,7 @@ async function sendBrandedInviteEmail(admin, {
     inviterEmail,
   })
 
-  return sendResendEmail(admin, agency, {
+  return sendResendEmailWithFallback(admin, agency, {
     to,
     subject: buildTeamInviteSubject(agency.name),
     html,
@@ -285,7 +279,7 @@ export async function inviteTeamMember(admin, { agencyId, email, role, fullName,
   if (displayName) inviteMeta.full_name = displayName
 
   const appUrl = getAppBaseUrl()
-  const redirectTo = `${appUrl}/login`
+  const redirectTo = `${appUrl}/accept-invite`
 
   const clearPendingInvite = async () => {
     await admin
@@ -310,98 +304,32 @@ export async function inviteTeamMember(admin, { agencyId, email, role, fullName,
     })
   }
 
-  // Prefer branded Resend email with logo when agency email is configured.
-  const canSendBranded = Boolean(
-    agency.resend_from_email && (await getDecryptedResendApiKey(admin, agency.id)),
-  )
+  // Always generate a link and send a branded Honeywell email (agency or platform Resend).
+  // Do not use Supabase's default invite mail — it has no logo and no password setup page.
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    type: 'invite',
+    email: normalizedEmail,
+    options: {
+      data: inviteMeta,
+      redirectTo,
+    },
+  })
 
-  if (canSendBranded) {
-    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: 'invite',
-      email: normalizedEmail,
-      options: {
-        data: inviteMeta,
-        redirectTo,
-      },
-    })
-
-    if (linkError) {
-      const msg = authErrorMessage(linkError)
-      const existingPath = await handleAlreadyRegistered(msg)
-      if (existingPath) return existingPath
-      await clearPendingInvite()
-      throw new Error(msg)
-    }
-
-    const invitedUserId = linkData?.user?.id || null
-    const inviteUrl = linkData?.properties?.action_link
-    if (!inviteUrl) {
-      await clearPendingInvite()
-      throw new Error('Invite link could not be generated.')
-    }
-
-    await finalizeInvitedUser(admin, {
-      agencyId,
-      invitedUserId,
-      role: normalizedRole,
-      invitedBy: actorUserId,
-      inviteMeta,
-      displayName,
-    })
-
-    const sent = await sendBrandedInviteEmail(admin, {
-      agency,
-      to: normalizedEmail,
-      inviteUrl,
-      displayName,
-      role: normalizedRole,
-      inviterEmail,
-    })
-
-    if (!sent.ok) {
-      throw new Error(
-        sent.error ||
-          'Failed to send the branded invite email. Check Resend settings under Integrations.',
-      )
-    }
-
-    await writeAuditLog(admin, {
-      actorUserId,
-      action: 'agency.member_invited',
-      entityType: 'agency',
-      entityId: agencyId,
-      metadata: {
-        email: normalizedEmail,
-        role: normalizedRole,
-        full_name: displayName,
-        email_style: 'branded',
-      },
-    })
-
-    return {
-      success: true,
-      email: normalizedEmail,
-      user_id: invitedUserId,
-      added_existing_user: false,
-      branded_email: true,
-    }
-  }
-
-  // Fallback: Supabase default invite email (when Resend is not configured).
-  const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
-    normalizedEmail,
-    { data: inviteMeta, redirectTo },
-  )
-
-  if (inviteError) {
-    const msg = authErrorMessage(inviteError)
+  if (linkError) {
+    const msg = authErrorMessage(linkError)
     const existingPath = await handleAlreadyRegistered(msg)
     if (existingPath) return existingPath
     await clearPendingInvite()
     throw new Error(msg)
   }
 
-  const invitedUserId = inviteData?.user?.id || null
+  const invitedUserId = linkData?.user?.id || null
+  const inviteUrl = linkData?.properties?.action_link
+  if (!inviteUrl) {
+    await clearPendingInvite()
+    throw new Error('Invite link could not be generated.')
+  }
+
   await finalizeInvitedUser(admin, {
     agencyId,
     invitedUserId,
@@ -410,6 +338,22 @@ export async function inviteTeamMember(admin, { agencyId, email, role, fullName,
     inviteMeta,
     displayName,
   })
+
+  const sent = await sendBrandedInviteEmail(admin, {
+    agency,
+    to: normalizedEmail,
+    inviteUrl,
+    displayName,
+    role: normalizedRole,
+    inviterEmail,
+  })
+
+  if (!sent.ok) {
+    throw new Error(
+      sent.error ||
+        'Failed to send the invite email. Configure Resend under Settings → Integrations (API key + from address), or set RESEND_API_KEY and RESEND_FROM_EMAIL on Vercel.',
+    )
+  }
 
   await writeAuditLog(admin, {
     actorUserId,
@@ -420,7 +364,8 @@ export async function inviteTeamMember(admin, { agencyId, email, role, fullName,
       email: normalizedEmail,
       role: normalizedRole,
       full_name: displayName,
-      email_style: 'supabase_default',
+      email_style: 'branded',
+      email_via: sent.via || 'unknown',
     },
   })
 
@@ -429,7 +374,7 @@ export async function inviteTeamMember(admin, { agencyId, email, role, fullName,
     email: normalizedEmail,
     user_id: invitedUserId,
     added_existing_user: false,
-    branded_email: false,
+    branded_email: true,
   }
 }
 
