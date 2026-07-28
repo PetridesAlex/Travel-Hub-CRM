@@ -1,7 +1,17 @@
 import { writeAuditLog } from './auditLog.js'
 import { canManageAgency } from './resolveUserAgency.js'
+import { sendResendEmail } from './resendService.js'
+import { getDecryptedResendApiKey } from './agencyIntegrations.js'
+import {
+  buildTeamInviteEmailHtml,
+  buildTeamInviteEmailText,
+  buildTeamInviteSubject,
+  getAppBaseUrl,
+  resolveInviteLogoAbsoluteUrl,
+} from './teamInviteEmail.js'
 
 const TEAM_ROLES = new Set(['admin', 'agent'])
+const AGENCY_INVITE_FIELDS = 'id, name, logo_url, email, resend_from_email, resend_reply_to, resend_domain'
 
 function authErrorMessage(err) {
   if (!err) return 'Unknown auth error'
@@ -148,6 +158,72 @@ export async function listTeamMembers(admin, agencyId) {
   return { members: rows, invitations: invitations || [] }
 }
 
+async function finalizeInvitedUser(admin, {
+  agencyId,
+  invitedUserId,
+  role,
+  invitedBy,
+  inviteMeta,
+  displayName,
+}) {
+  if (!invitedUserId) return
+
+  await admin.auth.admin.updateUserById(invitedUserId, {
+    app_metadata: {
+      invited_agency_id: agencyId,
+      agency_role: role,
+    },
+    user_metadata: displayName ? { ...inviteMeta, full_name: displayName } : inviteMeta,
+  })
+
+  await ensureTeamMembership(admin, {
+    agencyId,
+    userId: invitedUserId,
+    role,
+    invitedBy,
+  })
+  await cleanupOrphanAgenciesForUser(admin, invitedUserId, agencyId)
+}
+
+async function sendBrandedInviteEmail(admin, {
+  agency,
+  to,
+  inviteUrl,
+  displayName,
+  role,
+  inviterEmail,
+}) {
+  const apiKey = await getDecryptedResendApiKey(admin, agency.id)
+  if (!apiKey || !agency.resend_from_email) {
+    return { ok: false, skipped: true }
+  }
+
+  const appUrl = getAppBaseUrl()
+  const logoUrl = resolveInviteLogoAbsoluteUrl(agency, appUrl)
+  const html = buildTeamInviteEmailHtml({
+    agencyName: agency.name,
+    logoUrl,
+    inviteUrl,
+    displayName,
+    role,
+    inviterEmail,
+  })
+  const text = buildTeamInviteEmailText({
+    agencyName: agency.name,
+    inviteUrl,
+    displayName,
+    role,
+    inviterEmail,
+  })
+
+  return sendResendEmail(admin, agency, {
+    to,
+    subject: buildTeamInviteSubject(agency.name),
+    html,
+    text,
+  })
+}
+
 export async function inviteTeamMember(admin, { agencyId, email, role, fullName, actorUserId, actorRole }) {
   if (!canManageAgency(actorRole)) {
     throw new Error('Only agency owners and admins can invite team members.')
@@ -178,7 +254,16 @@ export async function inviteTeamMember(admin, { agencyId, email, role, fullName,
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 7)
 
-  const { data: agency } = await admin.from('agencies').select('name').eq('id', agencyId).maybeSingle()
+  const { data: agency, error: agencyError } = await admin
+    .from('agencies')
+    .select(AGENCY_INVITE_FIELDS)
+    .eq('id', agencyId)
+    .maybeSingle()
+  if (agencyError) throw agencyError
+  if (!agency) throw new Error('Agency not found.')
+
+  const { data: actorUserData } = await admin.auth.admin.getUserById(actorUserId)
+  const inviterEmail = actorUserData?.user?.email || null
 
   // Insert invitation first so the signup trigger can mark it accepted.
   const { error: inviteInsertError } = await admin.from('agency_invitations').insert({
@@ -191,80 +276,161 @@ export async function inviteTeamMember(admin, { agencyId, email, role, fullName,
   })
   if (inviteInsertError) throw inviteInsertError
 
-  // inviteUserByEmail only persists `data` → user_metadata (not app_metadata).
-  // Put agency targeting there so the DB trigger joins Honeywell instead of creating an orphan.
+  // inviteUserByEmail / generateLink only persist `data` → user_metadata.
   const inviteMeta = {
-    agency_name: agency?.name || 'Travel Agency',
+    agency_name: agency.name || 'Travel Agency',
     invited_agency_id: agencyId,
     agency_role: normalizedRole,
   }
   if (displayName) inviteMeta.full_name = displayName
 
-  const redirectBase = process.env.APP_URL || process.env.VITE_APP_URL || process.env.SITE_URL || null
-  const inviteOptions = { data: inviteMeta }
-  if (redirectBase) {
-    inviteOptions.redirectTo = `${String(redirectBase).replace(/\/$/, '')}/login`
-  }
+  const appUrl = getAppBaseUrl()
+  const redirectTo = `${appUrl}/login`
 
-  const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
-    normalizedEmail,
-    inviteOptions,
-  )
-
-  if (inviteError) {
-    const msg = authErrorMessage(inviteError)
-    // Race: user appeared between listUsers and invite
-    if (/already|registered|exists/i.test(msg)) {
-      const raced = await findAuthUserByEmail(admin, normalizedEmail)
-      if (raced) {
-        return addExistingUserToTeam(admin, {
-          agencyId,
-          existingUser: raced,
-          role: normalizedRole,
-          displayName,
-          actorUserId,
-          normalizedEmail,
-        })
-      }
-    }
+  const clearPendingInvite = async () => {
     await admin
       .from('agency_invitations')
       .delete()
       .eq('agency_id', agencyId)
       .eq('email', normalizedEmail)
       .eq('status', 'pending')
+  }
+
+  const handleAlreadyRegistered = async (msg) => {
+    if (!/already|registered|exists/i.test(msg)) return null
+    const raced = await findAuthUserByEmail(admin, normalizedEmail)
+    if (!raced) return null
+    return addExistingUserToTeam(admin, {
+      agencyId,
+      existingUser: raced,
+      role: normalizedRole,
+      displayName,
+      actorUserId,
+      normalizedEmail,
+    })
+  }
+
+  // Prefer branded Resend email with logo when agency email is configured.
+  const canSendBranded = Boolean(
+    agency.resend_from_email && (await getDecryptedResendApiKey(admin, agency.id)),
+  )
+
+  if (canSendBranded) {
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+      type: 'invite',
+      email: normalizedEmail,
+      options: {
+        data: inviteMeta,
+        redirectTo,
+      },
+    })
+
+    if (linkError) {
+      const msg = authErrorMessage(linkError)
+      const existingPath = await handleAlreadyRegistered(msg)
+      if (existingPath) return existingPath
+      await clearPendingInvite()
+      throw new Error(msg)
+    }
+
+    const invitedUserId = linkData?.user?.id || null
+    const inviteUrl = linkData?.properties?.action_link
+    if (!inviteUrl) {
+      await clearPendingInvite()
+      throw new Error('Invite link could not be generated.')
+    }
+
+    await finalizeInvitedUser(admin, {
+      agencyId,
+      invitedUserId,
+      role: normalizedRole,
+      invitedBy: actorUserId,
+      inviteMeta,
+      displayName,
+    })
+
+    const sent = await sendBrandedInviteEmail(admin, {
+      agency,
+      to: normalizedEmail,
+      inviteUrl,
+      displayName,
+      role: normalizedRole,
+      inviterEmail,
+    })
+
+    if (!sent.ok) {
+      throw new Error(
+        sent.error ||
+          'Failed to send the branded invite email. Check Resend settings under Integrations.',
+      )
+    }
+
+    await writeAuditLog(admin, {
+      actorUserId,
+      action: 'agency.member_invited',
+      entityType: 'agency',
+      entityId: agencyId,
+      metadata: {
+        email: normalizedEmail,
+        role: normalizedRole,
+        full_name: displayName,
+        email_style: 'branded',
+      },
+    })
+
+    return {
+      success: true,
+      email: normalizedEmail,
+      user_id: invitedUserId,
+      added_existing_user: false,
+      branded_email: true,
+    }
+  }
+
+  // Fallback: Supabase default invite email (when Resend is not configured).
+  const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
+    normalizedEmail,
+    { data: inviteMeta, redirectTo },
+  )
+
+  if (inviteError) {
+    const msg = authErrorMessage(inviteError)
+    const existingPath = await handleAlreadyRegistered(msg)
+    if (existingPath) return existingPath
+    await clearPendingInvite()
     throw new Error(msg)
   }
 
   const invitedUserId = inviteData?.user?.id || null
-  if (invitedUserId) {
-    // Keep app_metadata in sync for helpers that read it later
-    await admin.auth.admin.updateUserById(invitedUserId, {
-      app_metadata: {
-        invited_agency_id: agencyId,
-        agency_role: normalizedRole,
-      },
-      ...(displayName ? { user_metadata: { ...inviteMeta, full_name: displayName } } : {}),
-    })
-
-    await ensureTeamMembership(admin, {
-      agencyId,
-      userId: invitedUserId,
-      role: normalizedRole,
-      invitedBy: actorUserId,
-    })
-    await cleanupOrphanAgenciesForUser(admin, invitedUserId, agencyId)
-  }
+  await finalizeInvitedUser(admin, {
+    agencyId,
+    invitedUserId,
+    role: normalizedRole,
+    invitedBy: actorUserId,
+    inviteMeta,
+    displayName,
+  })
 
   await writeAuditLog(admin, {
     actorUserId,
     action: 'agency.member_invited',
     entityType: 'agency',
     entityId: agencyId,
-    metadata: { email: normalizedEmail, role: normalizedRole, full_name: displayName },
+    metadata: {
+      email: normalizedEmail,
+      role: normalizedRole,
+      full_name: displayName,
+      email_style: 'supabase_default',
+    },
   })
 
-  return { success: true, email: normalizedEmail, user_id: invitedUserId, added_existing_user: false }
+  return {
+    success: true,
+    email: normalizedEmail,
+    user_id: invitedUserId,
+    added_existing_user: false,
+    branded_email: false,
+  }
 }
 
 export async function removeTeamMember(admin, { agencyId, memberId, actorUserId, actorRole }) {

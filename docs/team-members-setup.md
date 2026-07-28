@@ -28,7 +28,7 @@ Honeywell Travel employees share **one agency** — they do not get a separate "
 4. They accept the invite email and set a password
 5. They (or you at invite time) can set their display name — it appears in the header and on the Team list
 
-New employees receive a Supabase invite email. When they accept, they join Honeywell — no new agency row.
+New employees receive a branded invite email from Honeywell (via Resend) with the agency logo and a button to set their password. Resend must be configured under **Settings → Integrations**. If Resend is not set up, a standard Supabase invite email is sent instead.
 
 ### If someone already self-registered
 
