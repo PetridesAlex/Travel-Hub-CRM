@@ -21,6 +21,8 @@ import FormBuilder from './pages/forms/FormBuilder'
 import FormResponses from './pages/forms/FormResponses'
 import FormAnalytics from './pages/forms/FormAnalytics'
 import PublicFormPage from './pages/forms/PublicFormPage'
+import Packages from './pages/packages/Packages'
+import PackageDetail from './pages/packages/PackageDetail'
 import AIEmailAssistant from './pages/AIEmailAssistant'
 import VoiceNotes from './pages/VoiceNotes'
 import MarketingCampaigns from './pages/MarketingCampaigns'
@@ -70,6 +72,9 @@ export default function App() {
             <Route path="/forms/:formId/edit" element={<FormBuilder />} />
             <Route path="/forms/:formId/responses" element={<FormResponses />} />
             <Route path="/forms/:formId/analytics" element={<FormAnalytics />} />
+            <Route path="/packages" element={<Packages />} />
+            <Route path="/packages/new" element={<PackageDetail />} />
+            <Route path="/packages/:id" element={<PackageDetail />} />
             <Route path="/ai-workspace/agents" element={<AIAgents />} />
             <Route path="/ai-workspace/templates" element={<AITemplates />} />
             <Route path="/ai-workspace/generator" element={<AIGenerator />} />

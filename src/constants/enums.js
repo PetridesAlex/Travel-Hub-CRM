@@ -135,6 +135,7 @@ export const NAV_ITEMS = [
   { path: '/tasks', label: 'Tasks', icon: 'CheckSquare' },
   { path: '/calendar', label: 'Calendar', icon: 'Calendar' },
   { path: '/forms', label: 'Forms', icon: 'ClipboardList' },
+  { path: '/packages', label: 'Packages', icon: 'Package' },
   { path: '/ai-workspace/generator', label: 'AI Generator', icon: 'Sparkles' },
   { path: '/ai-workspace/agents', label: 'AI Agents', icon: 'Bot' },
   { path: '/ai-workspace/templates', label: 'AI Templates', icon: 'FileStack' },
