@@ -21,11 +21,11 @@ export async function listTeamMembers(session) {
   return parseResponse(res)
 }
 
-export async function inviteTeamMember(session, { email, role = 'agent' }) {
+export async function inviteTeamMember(session, { email, role = 'agent', full_name } = {}) {
   const res = await fetch('/api/agency/team', {
     method: 'POST',
     headers: authHeaders(session),
-    body: JSON.stringify({ email, role }),
+    body: JSON.stringify({ email, role, full_name: full_name || undefined }),
   })
   return parseResponse(res)
 }

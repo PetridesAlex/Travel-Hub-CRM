@@ -13,7 +13,7 @@ Edits write to the shared Supabase `cms_packages` table. The public site at [hon
 ## Use
 
 - Search / filter packages, then **Edit**
-- Update basics, status (Published / Draft / Hidden), departures, hotels & prices, media, program
+- Update basics, status (Published / Draft / Hidden), departures, **flights**, hotels & prices, media, program
 - **Save** — live catalog updates within a few seconds
 - **View site** opens the public package page
 

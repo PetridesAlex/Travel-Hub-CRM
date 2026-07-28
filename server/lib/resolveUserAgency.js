@@ -1,11 +1,15 @@
-const ROLE_ORDER = { owner: 0, admin: 1, agent: 2 }
+import { pickBestMembership } from '../../shared/agencyMembership.js'
 
 export function canManageAgency(role) {
   return role === 'owner' || role === 'admin'
 }
 
-export async function resolveUserAgency(supabase, userId) {
-  const { data: memberships, error: memberError } = await supabase
+/**
+ * Resolve the caller's agency via agency_members (admin client).
+ * Prefers shared/protected agencies over empty personal orphans.
+ */
+export async function resolveUserAgency(admin, userId) {
+  const { data: memberships, error: memberError } = await admin
     .from('agency_members')
     .select('role, agency:agencies(*)')
     .eq('user_id', userId)
@@ -13,20 +17,20 @@ export async function resolveUserAgency(supabase, userId) {
   if (memberError && memberError.code !== '42P01') throw memberError
 
   if (memberships?.length) {
-    const best = [...memberships].sort((a, b) => (ROLE_ORDER[a.role] ?? 9) - (ROLE_ORDER[b.role] ?? 9))[0]
+    const best = pickBestMembership(memberships)
     if (best?.agency) {
-      return { agency: best.agency, role: best.role }
+      return { agency: best.agency, role: best.role, agencyId: best.agency.id }
     }
   }
 
-  const { data: owned, error: ownerError } = await supabase
+  const { data: owned, error: ownerError } = await admin
     .from('agencies')
     .select('*')
     .eq('owner_user_id', userId)
     .maybeSingle()
 
   if (ownerError) throw ownerError
-  if (owned) return { agency: owned, role: 'owner' }
+  if (owned) return { agency: owned, role: 'owner', agencyId: owned.id }
 
   return null
 }

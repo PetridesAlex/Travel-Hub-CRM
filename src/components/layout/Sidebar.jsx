@@ -2,10 +2,15 @@ import {
   LayoutDashboard, Users, Target, FileText, CalendarCheck,
   Building2, CheckSquare, Calendar, Mail, Mic, Megaphone, Settings,
   ScrollText, Receipt, Sparkles, Bot, FileStack, History, Orbit, ClipboardList,
-  Package,
+  Package, Sun, Snowflake, Flower2, Palmtree, Ship,
 } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { NAV_ITEMS } from '../../constants/enums'
+import {
+  PACKAGE_CATEGORIES,
+  getPackageCategoryIcon,
+  packagesCategoryPath,
+} from '../../constants/packageCategories'
 import { useAgency } from '../../hooks/useAgency'
 import AgencyLogo from './AgencyLogo'
 import { resolveAgencyLogoUrl } from '../../utils/resolveAgencyLogo'
@@ -14,14 +19,15 @@ const ICONS = {
   LayoutDashboard, Users, Target, FileText, CalendarCheck,
   Building2, CheckSquare, Calendar, Mail, Mic, Megaphone, Settings,
   ScrollText, Receipt, Sparkles, Bot, FileStack, History, ClipboardList,
-  Package,
+  Package, Sun, Snowflake, Flower2, Palmtree, Ship,
 }
 
 const NAV_GROUPS = [
   { label: 'Overview', paths: ['/dashboard'], accent: 'teal' },
   { label: 'Sales', paths: ['/clients', '/leads', '/quotations', '/bookings'], accent: 'sky' },
   { label: 'Finance', paths: ['/invoices', '/receipts'], accent: 'emerald' },
-  { label: 'Operations', paths: ['/suppliers', '/tasks', '/calendar', '/forms', '/packages'], accent: 'amber' },
+  { label: 'Operations', paths: ['/suppliers', '/tasks', '/calendar', '/forms'], accent: 'amber' },
+  { label: 'Catalog', paths: ['/packages'], accent: 'amber', showPackageCategories: true },
   { label: 'AI Workspace', paths: ['/ai-workspace/generator', '/ai-workspace/agents', '/ai-workspace/templates', '/ai-workspace/history'], accent: 'violet' },
   { label: 'AI Suite', paths: ['/ai-email', '/voice-notes', '/marketing'], accent: 'indigo' },
 ]
@@ -122,6 +128,56 @@ function NavGroupLabel({ label, accent }) {
   )
 }
 
+function PackageCategoryNav({ onClose }) {
+  const location = useLocation()
+  const params = new URLSearchParams(location.search)
+  const activeCategory = location.pathname.startsWith('/packages') ? params.get('category') : null
+  const onPackagesIndex = location.pathname === '/packages' && !activeCategory
+
+  return (
+    <ul className="mt-1 space-y-0.5 border-l border-white/[0.06] pl-3 ml-4">
+      <li>
+        <NavLink
+          to="/packages"
+          end
+          onClick={onClose}
+          className={() =>
+            `flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition ${
+              onPackagesIndex
+                ? 'bg-white/[0.08] text-teal-100'
+                : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-200'
+            }`
+          }
+        >
+          All packages
+        </NavLink>
+      </li>
+      {PACKAGE_CATEGORIES.map((cat) => {
+        const Icon = getPackageCategoryIcon(cat.icon)
+        const active = activeCategory === cat.id
+        return (
+          <li key={cat.id}>
+            <NavLink
+              to={packagesCategoryPath(cat.id)}
+              onClick={onClose}
+              className={() =>
+                `flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition ${
+                  active
+                    ? 'bg-white/[0.08] text-white'
+                    : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-200'
+                }`
+              }
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0 opacity-80" />
+              <span className="truncate">{cat.label}</span>
+            </NavLink>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export default function Sidebar({ open, onClose }) {
   const { agency } = useAgency()
   const agencyName = agency?.name || 'My Travel Agency'
@@ -187,6 +243,7 @@ export default function Sidebar({ open, onClose }) {
                       <NavItem key={item.path} item={item} onClose={onClose} accent={group.accent} />
                     ))}
                   </ul>
+                  {group.showPackageCategories ? <PackageCategoryNav onClose={onClose} /> : null}
                 </div>
               )
             })}

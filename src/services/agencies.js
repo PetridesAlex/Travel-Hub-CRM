@@ -1,8 +1,7 @@
 import { supabase } from '../lib/supabase'
+import { pickBestMembership } from '../../shared/agencyMembership.js'
 
 const LOCAL_AGENCY_KEY = (userId) => `agency_profile_${userId}`
-
-const ROLE_ORDER = { owner: 0, admin: 1, agent: 2 }
 
 export const OWNER_AGENCY_FIELDS = [
   'name', 'logo_url', 'address', 'phone', 'email', 'website',
@@ -66,7 +65,7 @@ export async function getUserAgency(userId) {
   }
 
   if (memberships?.length) {
-    const best = [...memberships].sort((a, b) => (ROLE_ORDER[a.role] ?? 9) - (ROLE_ORDER[b.role] ?? 9))[0]
+    const best = pickBestMembership(memberships)
     if (best?.agency) {
       return { ...best.agency, member_role: best.role }
     }

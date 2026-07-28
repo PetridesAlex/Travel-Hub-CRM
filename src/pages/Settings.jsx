@@ -83,8 +83,8 @@ function RoleBadge({ role }) {
   )
 }
 
-function MemberAvatar({ email }) {
-  const initial = (email || '?').charAt(0).toUpperCase()
+function MemberAvatar({ email, name }) {
+  const initial = (name || email || '?').charAt(0).toUpperCase()
   return (
     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-sm font-semibold text-slate-700 ring-2 ring-white">
       {initial}
@@ -132,7 +132,7 @@ function StatTile({ label, value, mono = false }) {
 }
 
 export default function Settings() {
-  const { user, signOut, session } = useAuth()
+  const { user, signOut, session, updateDisplayName } = useAuth()
   const { agency, memberRole, updateAgencyProfile } = useAgency()
   const { isSuperAdmin } = useSuperAdmin()
   const canManage = canManageAgencySettings(memberRole)
@@ -152,8 +152,11 @@ export default function Settings() {
   const [teamInvites, setTeamInvites] = useState([])
   const [teamLoading, setTeamLoading] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
   const [inviteRole, setInviteRole] = useState('agent')
   const [inviting, setInviting] = useState(false)
+  const [displayName, setDisplayName] = useState(() => user?.user_metadata?.full_name || '')
+  const [savingName, setSavingName] = useState(false)
   const [outlookProvider, setOutlookProvider] = useState(() => getOutlookPrefs().provider)
   const [outlookEmail, setOutlookEmail] = useState(() => getOutlookPrefs().email || user?.email || '')
 
@@ -215,19 +218,42 @@ export default function Settings() {
     if (tab === 'team') loadTeam()
   }, [tab, session])
 
+  useEffect(() => {
+    setDisplayName(user?.user_metadata?.full_name || '')
+  }, [user?.id, user?.user_metadata?.full_name])
+
   async function handleInviteMember(e) {
     e.preventDefault()
     setInviting(true)
     setMessage('')
     try {
-      await inviteTeamMember(session, { email: inviteEmail, role: inviteRole })
+      await inviteTeamMember(session, {
+        email: inviteEmail,
+        role: inviteRole,
+        full_name: inviteName.trim() || undefined,
+      })
       setInviteEmail('')
+      setInviteName('')
       setMessage('Invitation sent successfully.')
       await loadTeam()
     } catch (err) {
       setMessage(err.message)
     } finally {
       setInviting(false)
+    }
+  }
+
+  async function handleSaveDisplayName(e) {
+    e.preventDefault()
+    setSavingName(true)
+    setMessage('')
+    try {
+      await updateDisplayName(displayName)
+      setMessage('Display name updated.')
+    } catch (err) {
+      setMessage(err.message)
+    } finally {
+      setSavingName(false)
     }
   }
 
@@ -595,6 +621,14 @@ export default function Settings() {
                       placeholder="colleague@company.com"
                       className="min-w-[220px] flex-1"
                     />
+                    <Input
+                      label="Display name"
+                      type="text"
+                      value={inviteName}
+                      onChange={(e) => setInviteName(e.target.value)}
+                      placeholder="Optional"
+                      className="min-w-[160px] flex-1"
+                    />
                     <Select
                       label="Role"
                       value={inviteRole}
@@ -630,9 +664,14 @@ export default function Settings() {
                       ) : teamMembers.map((member) => (
                         <li key={member.id} className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-slate-50/80">
                           <div className="flex min-w-0 items-center gap-3">
-                            <MemberAvatar email={member.email} />
+                            <MemberAvatar email={member.email} name={member.full_name} />
                             <div className="min-w-0">
-                              <p className="truncate font-medium text-slate-900">{member.email || member.user_id}</p>
+                              <p className="truncate font-medium text-slate-900">
+                                {member.full_name || member.email || member.user_id}
+                              </p>
+                              {member.full_name && member.email ? (
+                                <p className="truncate text-sm text-slate-500">{member.email}</p>
+                              ) : null}
                               <div className="mt-1">
                                 <RoleBadge role={member.role} />
                               </div>
@@ -692,6 +731,20 @@ export default function Settings() {
                   </div>
                   <RoleBadge role={memberRole || 'owner'} />
                 </div>
+
+                <form onSubmit={handleSaveDisplayName} className="mt-6 space-y-4">
+                  <Input
+                    label="Display name"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="How your name appears in the header"
+                  />
+                  <Button type="submit" disabled={savingName}>
+                    {savingName ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : 'Save display name'}
+                  </Button>
+                </form>
+
                 <Button variant="danger" onClick={signOut} className="mt-6">Sign out</Button>
               </Card>
 

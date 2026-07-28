@@ -23,11 +23,12 @@ async function handleTeam(req, res, auth, admin, agencyId, actorRole) {
   }
 
   if (req.method === 'POST') {
-    const { email, role } = req.body || {}
+    const { email, role, full_name: fullName } = req.body || {}
     const result = await inviteTeamMember(admin.supabase, {
       agencyId,
       email,
       role,
+      fullName,
       actorUserId: auth.user.id,
       actorRole,
     })

@@ -1,7 +1,44 @@
 import { writeAuditLog } from './auditLog.js'
 import { canManageAgency } from './resolveUserAgency.js'
+import { isDefaultOrphanAgencyName } from '../../shared/agencyMembership.js'
 
 const TEAM_ROLES = new Set(['admin', 'agent'])
+
+async function agencyHasCrmData(admin, agencyId) {
+  const [{ count: clients }, { count: leads }] = await Promise.all([
+    admin.from('clients').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId),
+    admin.from('leads').select('id', { count: 'exact', head: true }).eq('agency_id', agencyId),
+  ])
+  return (clients || 0) > 0 || (leads || 0) > 0
+}
+
+/**
+ * Remove empty personal "My Travel Agency" orphans so the user lands on the invited agency.
+ */
+export async function cleanupOrphanAgenciesForUser(admin, userId, keepAgencyId) {
+  const { data: owned } = await admin
+    .from('agencies')
+    .select('id, name, is_protected, owner_user_id')
+    .eq('owner_user_id', userId)
+
+  for (const agency of owned || []) {
+    if (agency.id === keepAgencyId) continue
+    if (agency.is_protected) continue
+    if (!isDefaultOrphanAgencyName(agency.name)) continue
+    if (await agencyHasCrmData(admin, agency.id)) continue
+
+    await admin.from('agency_members').delete().eq('agency_id', agency.id)
+    await admin.from('agencies').delete().eq('id', agency.id)
+  }
+}
+
+async function applyDisplayName(admin, userId, fullName) {
+  const name = String(fullName || '').trim()
+  if (!name || !userId) return
+  await admin.auth.admin.updateUserById(userId, {
+    user_metadata: { full_name: name },
+  })
+}
 
 export async function listTeamMembers(admin, agencyId) {
   const { data: members, error } = await admin
@@ -18,6 +55,7 @@ export async function listTeamMembers(admin, agencyId) {
       return {
         ...member,
         email: data?.user?.email || null,
+        full_name: data?.user?.user_metadata?.full_name || null,
       }
     }),
   )
@@ -33,7 +71,7 @@ export async function listTeamMembers(admin, agencyId) {
   return { members: rows, invitations: invitations || [] }
 }
 
-export async function inviteTeamMember(admin, { agencyId, email, role, actorUserId, actorRole }) {
+export async function inviteTeamMember(admin, { agencyId, email, role, fullName, actorUserId, actorRole }) {
   if (!canManageAgency(actorRole)) {
     throw new Error('Only agency owners and admins can invite team members.')
   }
@@ -45,6 +83,8 @@ export async function inviteTeamMember(admin, { agencyId, email, role, actorUser
 
   const normalizedEmail = String(email || '').trim().toLowerCase()
   if (!normalizedEmail) throw new Error('Email is required.')
+
+  const displayName = String(fullName || '').trim() || null
 
   const { data: existingUsers } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
   const existingUser = existingUsers?.users?.find((u) => u.email?.toLowerCase() === normalizedEmail)
@@ -66,12 +106,15 @@ export async function inviteTeamMember(admin, { agencyId, email, role, actorUser
       invited_by: actorUserId,
     })
 
+    await cleanupOrphanAgenciesForUser(admin, existingUser.id, agencyId)
+    await applyDisplayName(admin, existingUser.id, displayName)
+
     await writeAuditLog(admin, {
       actorUserId,
       action: 'agency.member_added',
       entityType: 'agency',
       entityId: agencyId,
-      metadata: { email: normalizedEmail, role: normalizedRole },
+      metadata: { email: normalizedEmail, role: normalizedRole, full_name: displayName },
     })
 
     return { success: true, email: normalizedEmail, user_id: existingUser.id, added_existing_user: true }
@@ -82,8 +125,11 @@ export async function inviteTeamMember(admin, { agencyId, email, role, actorUser
 
   const { data: agency } = await admin.from('agencies').select('name').eq('id', agencyId).maybeSingle()
 
+  const inviteMeta = { agency_name: agency?.name || 'Travel Agency' }
+  if (displayName) inviteMeta.full_name = displayName
+
   const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(normalizedEmail, {
-    data: { agency_name: agency?.name || 'Travel Agency' },
+    data: inviteMeta,
     app_metadata: { invited_agency_id: agencyId, agency_role: normalizedRole },
   })
   if (inviteError) throw inviteError
@@ -98,21 +144,24 @@ export async function inviteTeamMember(admin, { agencyId, email, role, actorUser
     })
   }
 
-  await admin.from('agency_invitations').insert({
+  const inviteRow = {
     agency_id: agencyId,
     email: normalizedEmail,
     role: normalizedRole,
     status: 'pending',
     invited_by: actorUserId,
     expires_at: expiresAt.toISOString(),
-  })
+  }
+
+  const { error: inviteInsertError } = await admin.from('agency_invitations').insert(inviteRow)
+  if (inviteInsertError) throw inviteInsertError
 
   await writeAuditLog(admin, {
     actorUserId,
     action: 'agency.member_invited',
     entityType: 'agency',
     entityId: agencyId,
-    metadata: { email: normalizedEmail, role: normalizedRole },
+    metadata: { email: normalizedEmail, role: normalizedRole, full_name: displayName },
   })
 
   return { success: true, email: normalizedEmail, user_id: invitedUserId, added_existing_user: false }

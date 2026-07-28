@@ -45,8 +45,18 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }
 
+  async function updateDisplayName(fullName) {
+    const name = String(fullName || '').trim()
+    const { data, error } = await supabase.auth.updateUser({
+      data: { full_name: name },
+    })
+    if (error) throw error
+    if (data?.user) setUser(data.user)
+    return data
+  }
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, updateDisplayName }}>
       {children}
     </AuthContext.Provider>
   )
