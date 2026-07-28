@@ -8,6 +8,7 @@ Honeywell Travel employees share **one agency** — they do not get a separate "
 2. `020_rls_agency_scope.sql` — shared CRM data for all agency members
 3. `021_invite_agency_employee_trigger.sql` — new invites join existing agency (no auto-agency)
 4. `024_agency_member_priority.sql` — prefer Honeywell over empty personal orphan agencies
+5. `025_invite_user_metadata_agency.sql` — invite emails put agency id in user_metadata; trigger must read it
 
 ## What changes
 

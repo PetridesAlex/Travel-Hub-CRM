@@ -210,18 +210,7 @@ export async function inviteAgencyOwner(admin, { agencyId, email, actorUserId })
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 7)
 
-  const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(normalizedEmail, {
-    data: { agency_name: agency.name },
-    app_metadata: { invited_agency_id: agencyId, agency_role: 'owner' },
-  })
-  if (inviteError) throw inviteError
-
-  const invitedUserId = inviteData?.user?.id || null
-
-  if (invitedUserId) {
-    await admin.from('agencies').update({ owner_user_id: invitedUserId }).eq('id', agencyId)
-  }
-
+  // Insert invitation first; inviteUserByEmail only writes user_metadata (not app_metadata).
   await admin.from('agency_invitations').insert({
     agency_id: agencyId,
     email: normalizedEmail,
@@ -230,6 +219,28 @@ export async function inviteAgencyOwner(admin, { agencyId, email, actorUserId })
     invited_by: actorUserId,
     expires_at: expiresAt.toISOString(),
   })
+
+  const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(normalizedEmail, {
+    data: {
+      agency_name: agency.name,
+      invited_agency_id: agencyId,
+      agency_role: 'owner',
+    },
+  })
+  if (inviteError) throw inviteError
+
+  const invitedUserId = inviteData?.user?.id || null
+
+  if (invitedUserId) {
+    await admin.auth.admin.updateUserById(invitedUserId, {
+      app_metadata: { invited_agency_id: agencyId, agency_role: 'owner' },
+    })
+    await admin.from('agencies').update({ owner_user_id: invitedUserId }).eq('id', agencyId)
+    await admin.from('agency_members').upsert(
+      { agency_id: agencyId, user_id: invitedUserId, role: 'owner', invited_by: actorUserId },
+      { onConflict: 'agency_id,user_id' },
+    )
+  }
 
   await writeAuditLog(admin, {
     actorUserId,
