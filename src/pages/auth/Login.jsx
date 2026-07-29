@@ -15,7 +15,8 @@ function hasInviteTokens() {
     hash.includes('type=invite') ||
     hash.includes('type=recovery') ||
     hash.includes('access_token=') ||
-    search.includes('code=')
+    search.includes('code=') ||
+    search.includes('token_hash=')
   )
 }
 

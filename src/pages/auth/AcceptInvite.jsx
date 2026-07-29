@@ -16,6 +16,15 @@ function getQueryParams() {
   return new URLSearchParams(window.location.search || '')
 }
 
+function cleanInviteParamsFromUrl() {
+  const url = new URL(window.location.href)
+  url.searchParams.delete('token_hash')
+  url.searchParams.delete('type')
+  url.searchParams.delete('code')
+  url.hash = ''
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}`)
+}
+
 export default function AcceptInvite() {
   const navigate = useNavigate()
   const [password, setPassword] = useState('')
@@ -42,17 +51,40 @@ export default function AcceptInvite() {
           return
         }
 
-        const code = query.get('code')
-        if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-          if (exchangeError) throw exchangeError
+        const tokenHash = query.get('token_hash')
+        const otpType = query.get('type') || 'invite'
+        if (tokenHash) {
+          const { error: otpError } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: otpType,
+          })
+          if (otpError) throw otpError
+          cleanInviteParamsFromUrl()
+        } else {
+          const code = query.get('code')
+          if (code) {
+            const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+            if (exchangeError) throw exchangeError
+            cleanInviteParamsFromUrl()
+          }
+
+          const accessToken = hash.get('access_token')
+          const refreshToken = hash.get('refresh_token')
+          if (accessToken && refreshToken) {
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            })
+            if (sessionError) throw sessionError
+            cleanInviteParamsFromUrl()
+          }
         }
 
         let { data: { session }, error: sessionError } = await supabase.auth.getSession()
         if (sessionError) throw sessionError
 
         if (!session?.user) {
-          await new Promise((r) => setTimeout(r, 500))
+          await new Promise((r) => setTimeout(r, 400))
           const retry = await supabase.auth.getSession()
           session = retry.data?.session || null
         }

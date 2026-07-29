@@ -2,6 +2,7 @@ import { writeAuditLog } from './auditLog.js'
 import { canManageAgency } from './resolveUserAgency.js'
 import { sendResendEmailWithFallback } from './resendService.js'
 import {
+  buildAcceptInviteUrl,
   buildTeamInviteEmailHtml,
   buildTeamInviteEmailText,
   buildTeamInviteSubject,
@@ -83,6 +84,74 @@ async function ensureTeamMembership(admin, { agencyId, userId, role, invitedBy }
   if (error) throw error
 }
 
+function userNeedsInviteSetup(user) {
+  // Invited / never completed a real sign-in → allow resending the set-password email.
+  return !user?.last_sign_in_at
+}
+
+async function upsertPendingInvitation(admin, {
+  agencyId,
+  email,
+  role,
+  actorUserId,
+  expiresAt,
+}) {
+  const { data: existingRows } = await admin
+    .from('agency_invitations')
+    .select('id')
+    .eq('agency_id', agencyId)
+    .eq('email', email)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  const existing = existingRows?.[0]
+
+  if (existing?.id) {
+    const { error } = await admin
+      .from('agency_invitations')
+      .update({
+        role,
+        invited_by: actorUserId,
+        expires_at: expiresAt.toISOString(),
+      })
+      .eq('id', existing.id)
+    if (error) throw error
+    return
+  }
+
+  const { error } = await admin.from('agency_invitations').insert({
+    agency_id: agencyId,
+    email,
+    role,
+    status: 'pending',
+    invited_by: actorUserId,
+    expires_at: expiresAt.toISOString(),
+  })
+  if (error) throw error
+}
+
+async function generateInviteAcceptUrl(admin, {
+  email,
+  linkType,
+  inviteMeta,
+  redirectTo,
+}) {
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    type: linkType,
+    email,
+    options: {
+      ...(linkType === 'invite' ? { data: inviteMeta } : {}),
+      redirectTo,
+    },
+  })
+  if (linkError) throw linkError
+
+  const inviteUrl = buildAcceptInviteUrl(linkData)
+  if (!inviteUrl) throw new Error('Invite link could not be generated.')
+  return { linkData, inviteUrl, invitedUserId: linkData?.user?.id || null }
+}
+
 async function addExistingUserToTeam(admin, {
   agencyId,
   existingUser,
@@ -90,6 +159,8 @@ async function addExistingUserToTeam(admin, {
   displayName,
   actorUserId,
   normalizedEmail,
+  agency,
+  inviterEmail,
 }) {
   const { data: alreadyMember } = await admin
     .from('agency_members')
@@ -98,7 +169,10 @@ async function addExistingUserToTeam(admin, {
     .eq('user_id', existingUser.id)
     .maybeSingle()
 
-  if (alreadyMember) throw new Error('This user is already on your team.')
+  const needsSetup = userNeedsInviteSetup(existingUser)
+  if (alreadyMember && !needsSetup) {
+    throw new Error('This user is already on your team.')
+  }
 
   await ensureTeamMembership(admin, {
     agencyId,
@@ -110,12 +184,86 @@ async function addExistingUserToTeam(admin, {
   await cleanupOrphanAgenciesForUser(admin, existingUser.id, agencyId)
   await applyDisplayName(admin, existingUser.id, displayName)
 
+  // Active accounts just get membership. Unfinished invites get a fresh set-password email.
+  if (!needsSetup) {
+    await writeAuditLog(admin, {
+      actorUserId,
+      action: 'agency.member_added',
+      entityType: 'agency',
+      entityId: agencyId,
+      metadata: { email: normalizedEmail, role, full_name: displayName },
+    })
+
+    return {
+      success: true,
+      email: normalizedEmail,
+      user_id: existingUser.id,
+      added_existing_user: true,
+    }
+  }
+
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + 7)
+  await upsertPendingInvitation(admin, {
+    agencyId,
+    email: normalizedEmail,
+    role,
+    actorUserId,
+    expiresAt,
+  })
+
+  const inviteMeta = {
+    agency_name: agency.name || 'Travel Agency',
+    invited_agency_id: agencyId,
+    agency_role: role,
+  }
+  if (displayName) inviteMeta.full_name = displayName
+
+  await admin.auth.admin.updateUserById(existingUser.id, {
+    app_metadata: {
+      invited_agency_id: agencyId,
+      agency_role: role,
+    },
+    user_metadata: displayName ? { ...inviteMeta, full_name: displayName } : inviteMeta,
+  })
+
+  const appUrl = getAppBaseUrl()
+  const redirectTo = `${appUrl}/accept-invite`
+  const { inviteUrl } = await generateInviteAcceptUrl(admin, {
+    email: normalizedEmail,
+    linkType: 'recovery',
+    inviteMeta,
+    redirectTo,
+  })
+
+  const sent = await sendBrandedInviteEmail(admin, {
+    agency,
+    to: normalizedEmail,
+    inviteUrl,
+    displayName,
+    role,
+    inviterEmail,
+  })
+
+  if (!sent.ok) {
+    throw new Error(
+      sent.error ||
+        'Failed to send the invite email. Configure Resend under Settings → Integrations (API key + from address), or set RESEND_API_KEY and RESEND_FROM_EMAIL on Vercel.',
+    )
+  }
+
   await writeAuditLog(admin, {
     actorUserId,
-    action: 'agency.member_added',
+    action: 'agency.member_invite_resent',
     entityType: 'agency',
     entityId: agencyId,
-    metadata: { email: normalizedEmail, role, full_name: displayName },
+    metadata: {
+      email: normalizedEmail,
+      role,
+      full_name: displayName,
+      email_style: 'branded',
+      email_via: sent.via || 'unknown',
+    },
   })
 
   return {
@@ -123,6 +271,8 @@ async function addExistingUserToTeam(admin, {
     email: normalizedEmail,
     user_id: existingUser.id,
     added_existing_user: true,
+    invite_resent: true,
+    branded_email: true,
   }
 }
 
@@ -233,21 +383,6 @@ export async function inviteTeamMember(admin, { agencyId, email, role, fullName,
 
   const displayName = String(fullName || '').trim() || null
 
-  const existingUser = await findAuthUserByEmail(admin, normalizedEmail)
-  if (existingUser) {
-    return addExistingUserToTeam(admin, {
-      agencyId,
-      existingUser,
-      role: normalizedRole,
-      displayName,
-      actorUserId,
-      normalizedEmail,
-    })
-  }
-
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + 7)
-
   const { data: agency, error: agencyError } = await admin
     .from('agencies')
     .select(AGENCY_INVITE_FIELDS)
@@ -259,16 +394,31 @@ export async function inviteTeamMember(admin, { agencyId, email, role, fullName,
   const { data: actorUserData } = await admin.auth.admin.getUserById(actorUserId)
   const inviterEmail = actorUserData?.user?.email || null
 
+  const existingUser = await findAuthUserByEmail(admin, normalizedEmail)
+  if (existingUser) {
+    return addExistingUserToTeam(admin, {
+      agencyId,
+      existingUser,
+      role: normalizedRole,
+      displayName,
+      actorUserId,
+      normalizedEmail,
+      agency,
+      inviterEmail,
+    })
+  }
+
+  const expiresAt = new Date()
+  expiresAt.setDate(expiresAt.getDate() + 7)
+
   // Insert invitation first so the signup trigger can mark it accepted.
-  const { error: inviteInsertError } = await admin.from('agency_invitations').insert({
-    agency_id: agencyId,
+  await upsertPendingInvitation(admin, {
+    agencyId,
     email: normalizedEmail,
     role: normalizedRole,
-    status: 'pending',
-    invited_by: actorUserId,
-    expires_at: expiresAt.toISOString(),
+    actorUserId,
+    expiresAt,
   })
-  if (inviteInsertError) throw inviteInsertError
 
   // inviteUserByEmail / generateLink only persist `data` → user_metadata.
   const inviteMeta = {
@@ -301,33 +451,30 @@ export async function inviteTeamMember(admin, { agencyId, email, role, fullName,
       displayName,
       actorUserId,
       normalizedEmail,
+      agency,
+      inviterEmail,
     })
   }
 
   // Always generate a link and send a branded Honeywell email (agency or platform Resend).
   // Do not use Supabase's default invite mail — it has no logo and no password setup page.
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: 'invite',
-    email: normalizedEmail,
-    options: {
-      data: inviteMeta,
+  let inviteUrl
+  let invitedUserId
+  try {
+    const generated = await generateInviteAcceptUrl(admin, {
+      email: normalizedEmail,
+      linkType: 'invite',
+      inviteMeta,
       redirectTo,
-    },
-  })
-
-  if (linkError) {
+    })
+    inviteUrl = generated.inviteUrl
+    invitedUserId = generated.invitedUserId
+  } catch (linkError) {
     const msg = authErrorMessage(linkError)
     const existingPath = await handleAlreadyRegistered(msg)
     if (existingPath) return existingPath
     await clearPendingInvite()
     throw new Error(msg)
-  }
-
-  const invitedUserId = linkData?.user?.id || null
-  const inviteUrl = linkData?.properties?.action_link
-  if (!inviteUrl) {
-    await clearPendingInvite()
-    throw new Error('Invite link could not be generated.')
   }
 
   await finalizeInvitedUser(admin, {

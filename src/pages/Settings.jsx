@@ -227,14 +227,18 @@ export default function Settings() {
     setInviting(true)
     setMessage('')
     try {
-      await inviteTeamMember(session, {
+      const result = await inviteTeamMember(session, {
         email: inviteEmail,
         role: inviteRole,
         full_name: inviteName.trim() || undefined,
       })
       setInviteEmail('')
       setInviteName('')
-      setMessage('Invitation sent successfully.')
+      setMessage(
+        result?.invite_resent
+          ? 'Invitation email resent. Ask them to use the newest link.'
+          : 'Invitation sent successfully.',
+      )
       await loadTeam()
     } catch (err) {
       setMessage(err.message)

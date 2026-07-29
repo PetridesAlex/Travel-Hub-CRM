@@ -16,6 +16,24 @@ export function getAppBaseUrl() {
   return String(fromEnv || 'https://travel-hub-crm.vercel.app').replace(/\/$/, '')
 }
 
+/**
+ * Prefer a direct app link with token_hash so accept-invite can call verifyOtp.
+ * Avoids broken Supabase → Site URL redirects when redirect allow-list / Site URL is wrong.
+ */
+export function buildAcceptInviteUrl(linkData, appUrl = getAppBaseUrl()) {
+  const props = linkData?.properties || {}
+  const hashedToken = props.hashed_token
+  const type = props.verification_type || 'invite'
+  if (hashedToken) {
+    const params = new URLSearchParams({
+      token_hash: hashedToken,
+      type: String(type),
+    })
+    return `${appUrl}/accept-invite?${params.toString()}`
+  }
+  return props.action_link || null
+}
+
 export function resolveInviteLogoAbsoluteUrl(agency, appUrl = getAppBaseUrl()) {
   const logo = agency?.logo_url
   if (logo?.startsWith('http://') || logo?.startsWith('https://')) return logo
