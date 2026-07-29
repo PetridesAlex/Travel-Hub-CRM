@@ -71,19 +71,20 @@ async function handleInvite(req, res, auth) {
 }
 
 export default async function handler(req, res) {
-  const auth = await verifySuperAdmin(req)
-  if (!auth.ok) {
-    return res.status(auth.status).json({ error: auth.error })
-  }
-
-  const route = resolveRoute(req)
-
   try {
+    const auth = await verifySuperAdmin(req)
+    if (!auth.ok) {
+      return res.status(auth.status).json({ error: auth.error })
+    }
+
+    const route = resolveRoute(req)
+
     if (route === 'invite') return await handleInvite(req, res, auth)
     if (route === 'agency') return await handleAgency(req, res, auth)
     return await handleAgencies(req, res, auth)
   } catch (err) {
-    const status = /not found/i.test(err.message) ? 404 : /protected|cannot/i.test(err.message) ? 403 : 500
+    console.error('[api/admin]', err)
+    const status = /not found/i.test(err.message || '') ? 404 : /protected|cannot/i.test(err.message || '') ? 403 : 500
     return res.status(status).json({ error: err.message || 'Admin request failed.' })
   }
 }
