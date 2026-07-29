@@ -8,6 +8,29 @@ function agencyInitials(name = '') {
   return (words[0][0] + words[1][0]).toUpperCase()
 }
 
+const SIZE_MAP = {
+  sm: {
+    box: 'h-8 w-8 rounded-lg',
+    icon: 'h-3.5 w-3.5',
+    text: 'text-[10px]',
+  },
+  md: {
+    box: 'h-10 w-10 rounded-xl sm:h-11 sm:w-11',
+    icon: 'h-5 w-5',
+    text: 'text-sm',
+  },
+  lg: {
+    box: 'h-12 w-12 rounded-2xl sm:h-14 sm:w-14',
+    icon: 'h-6 w-6',
+    text: 'text-base',
+  },
+  xl: {
+    box: 'h-14 w-14 rounded-2xl sm:h-16 sm:w-16',
+    icon: 'h-7 w-7',
+    text: 'text-lg',
+  },
+}
+
 export default function AgencyLogo({
   name = 'Travel Agency',
   logoUrl,
@@ -17,28 +40,19 @@ export default function AgencyLogo({
   const [imgError, setImgError] = useState(false)
   const showImage = Boolean(logoUrl) && !imgError
   const initials = agencyInitials(name)
-
-  const sizeClasses =
-    size === 'sm'
-      ? 'h-8 w-8 rounded-lg'
-      : size === 'lg'
-        ? 'h-12 w-12 rounded-2xl sm:h-14 sm:w-14'
-        : 'h-10 w-10 rounded-xl sm:h-11 sm:w-11'
-
-  const iconSize = size === 'sm' ? 'h-3.5 w-3.5' : size === 'lg' ? 'h-6 w-6' : 'h-5 w-5'
-  const textSize = size === 'sm' ? 'text-[10px]' : size === 'lg' ? 'text-base' : 'text-sm'
+  const sizes = SIZE_MAP[size] || SIZE_MAP.md
 
   return (
     <div className={`relative shrink-0 ${className}`}>
       <div
-        className={`absolute inset-0 blur-md ${sizeClasses} ${
-          showImage ? 'bg-white/15' : 'bg-teal-400/30'
+        className={`absolute inset-0 blur-md ${sizes.box} ${
+          showImage ? 'bg-white/20' : 'bg-teal-400/35'
         }`}
       />
       <div
-        className={`relative flex items-center justify-center overflow-hidden shadow-lg ring-1 ring-white/10 ${sizeClasses} ${
+        className={`relative flex items-center justify-center overflow-hidden shadow-lg ring-1 ring-white/15 ${sizes.box} ${
           showImage
-            ? 'bg-white shadow-black/25'
+            ? 'bg-white shadow-black/30'
             : 'bg-gradient-to-br from-teal-400 to-teal-700 shadow-teal-900/40'
         }`}
       >
@@ -50,9 +64,9 @@ export default function AgencyLogo({
             onError={() => setImgError(true)}
           />
         ) : initials ? (
-          <span className={`font-bold tracking-tight text-white ${textSize}`}>{initials}</span>
+          <span className={`font-bold tracking-tight text-white ${sizes.text}`}>{initials}</span>
         ) : (
-          <Plane className={`${iconSize} text-white`} />
+          <Plane className={`${sizes.icon} text-white`} />
         )}
       </div>
     </div>
