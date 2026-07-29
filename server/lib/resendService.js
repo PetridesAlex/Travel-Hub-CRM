@@ -57,6 +57,29 @@ export async function sendResendEmailWithFallback(admin, agency, { to, subject, 
   if (agencyKey && agencyFrom) {
     const result = await sendResendEmail(admin, agency, { to, subject, html, text })
     if (result.ok) return { ...result, via: 'agency' }
+
+    const platformKey = process.env.RESEND_API_KEY || null
+    const platformFrom = process.env.RESEND_FROM_EMAIL || null
+    if (platformKey && platformFrom) {
+      const payload = {
+        from: platformFrom,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html: html || undefined,
+        text: text || undefined,
+      }
+      if (agency?.resend_reply_to || agency?.email) {
+        payload.reply_to = agency.resend_reply_to || agency.email
+      }
+      const fallback = await postResendEmail(platformKey, payload)
+      if (fallback.ok) return { ...fallback, via: 'platform' }
+      return {
+        ok: false,
+        error: fallback.error || result.error || 'Resend failed.',
+      }
+    }
+
+    return result
   }
 
   const platformKey = process.env.RESEND_API_KEY || null
@@ -81,12 +104,16 @@ export async function sendResendEmailWithFallback(admin, agency, { to, subject, 
     return { ok: false, error: 'Resend from email is not configured for this agency (Settings → Integrations).' }
   }
   if (!agencyKey && agencyFrom) {
-    return { ok: false, error: 'Resend API key is not configured for this agency (Settings → Integrations).' }
+    return {
+      ok: false,
+      error:
+        'Resend API key is missing. Open Settings → Integrations, paste your Resend API key (re_…), and click Save changes.',
+    }
   }
 
   return {
     ok: false,
     error:
-      'Email sending is not configured. Add Resend under Settings → Integrations, or set RESEND_API_KEY and RESEND_FROM_EMAIL on the server.',
+      'Email sending is not configured. Add Resend under Settings → Integrations (API key + from address), or set RESEND_API_KEY and RESEND_FROM_EMAIL on Vercel.',
   }
 }

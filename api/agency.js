@@ -2,7 +2,7 @@ import { verifySession } from '../server/lib/verifySession.js'
 import { getSupabaseAdmin } from '../server/lib/supabaseAdmin.js'
 import { resolveUserAgency } from '../server/lib/resolveUserAgency.js'
 import { inviteTeamMember, listTeamMembers, removeTeamMember } from '../server/lib/agencyTeam.js'
-import { upsertResendApiKey } from '../server/lib/agencyIntegrations.js'
+import { getAgencyIntegrations, upsertResendApiKey } from '../server/lib/agencyIntegrations.js'
 import { sendResendEmail } from '../server/lib/resendService.js'
 import { agencyAccessError } from '../server/lib/checkAgencyActive.js'
 
@@ -53,6 +53,15 @@ async function handleTeam(req, res, auth, admin, agencyId, actorRole) {
 }
 
 async function handleIntegrations(req, res, resolved, admin) {
+  if (req.method === 'GET') {
+    const row = await getAgencyIntegrations(admin.supabase, resolved.agency.id)
+    return res.status(200).json({
+      has_resend_api_key: Boolean(row?.resend_api_key_encrypted),
+      resend_from_email: resolved.agency.resend_from_email || null,
+      resend_domain: resolved.agency.resend_domain || null,
+    })
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -61,8 +70,11 @@ async function handleIntegrations(req, res, resolved, admin) {
   }
 
   const { resend_api_key } = req.body || {}
-  await upsertResendApiKey(admin.supabase, resolved.agency.id, resend_api_key || null)
-  return res.status(200).json({ success: true, has_resend_api_key: Boolean(resend_api_key) })
+  if (!resend_api_key || !String(resend_api_key).trim()) {
+    return res.status(400).json({ error: 'Resend API key is required.' })
+  }
+  await upsertResendApiKey(admin.supabase, resolved.agency.id, String(resend_api_key).trim())
+  return res.status(200).json({ success: true, has_resend_api_key: true })
 }
 
 async function handleEmail(req, res, auth, admin) {

@@ -84,11 +84,6 @@ async function ensureTeamMembership(admin, { agencyId, userId, role, invitedBy }
   if (error) throw error
 }
 
-function userNeedsInviteSetup(user) {
-  // Invited / never completed a real sign-in → allow resending the set-password email.
-  return !user?.last_sign_in_at
-}
-
 async function upsertPendingInvitation(admin, {
   agencyId,
   email,
@@ -169,11 +164,6 @@ async function addExistingUserToTeam(admin, {
     .eq('user_id', existingUser.id)
     .maybeSingle()
 
-  const needsSetup = userNeedsInviteSetup(existingUser)
-  if (alreadyMember && !needsSetup) {
-    throw new Error('This user is already on your team.')
-  }
-
   await ensureTeamMembership(admin, {
     agencyId,
     userId: existingUser.id,
@@ -183,24 +173,6 @@ async function addExistingUserToTeam(admin, {
 
   await cleanupOrphanAgenciesForUser(admin, existingUser.id, agencyId)
   await applyDisplayName(admin, existingUser.id, displayName)
-
-  // Active accounts just get membership. Unfinished invites get a fresh set-password email.
-  if (!needsSetup) {
-    await writeAuditLog(admin, {
-      actorUserId,
-      action: 'agency.member_added',
-      entityType: 'agency',
-      entityId: agencyId,
-      metadata: { email: normalizedEmail, role, full_name: displayName },
-    })
-
-    return {
-      success: true,
-      email: normalizedEmail,
-      user_id: existingUser.id,
-      added_existing_user: true,
-    }
-  }
 
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 7)
@@ -254,7 +226,7 @@ async function addExistingUserToTeam(admin, {
 
   await writeAuditLog(admin, {
     actorUserId,
-    action: 'agency.member_invite_resent',
+    action: alreadyMember ? 'agency.member_invite_resent' : 'agency.member_added',
     entityType: 'agency',
     entityId: agencyId,
     metadata: {
@@ -263,6 +235,7 @@ async function addExistingUserToTeam(admin, {
       full_name: displayName,
       email_style: 'branded',
       email_via: sent.via || 'unknown',
+      already_member: Boolean(alreadyMember),
     },
   })
 

@@ -21,7 +21,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useAgency } from '../hooks/useAgency'
 import { useSuperAdmin } from '../hooks/useSuperAdmin'
 import { testSlackConnection } from '../services/slackNotify'
-import { saveAgencyResendKey } from '../services/agencyIntegrations'
+import { getAgencyIntegrationsStatus, saveAgencyResendKey } from '../services/agencyIntegrations'
 import { sendEmailViaResend } from '../services/emailSend'
 import { inviteTeamMember, listTeamMembers, removeTeamMember } from '../services/agencyTeam'
 import { canManageAgencySettings } from '../services/agencies'
@@ -140,6 +140,7 @@ export default function Settings() {
   const [currency, setCurrency] = useState(() => localStorage.getItem('default_currency') || 'EUR')
   const [form, setForm] = useState({})
   const [resendApiKey, setResendApiKey] = useState('')
+  const [hasResendApiKey, setHasResendApiKey] = useState(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [copiedKey, setCopiedKey] = useState(false)
@@ -217,6 +218,21 @@ export default function Settings() {
   useEffect(() => {
     if (tab === 'team') loadTeam()
   }, [tab, session])
+
+  useEffect(() => {
+    if (tab !== 'integrations' || !session?.access_token) return
+    let cancelled = false
+    getAgencyIntegrationsStatus(session)
+      .then((data) => {
+        if (!cancelled) setHasResendApiKey(Boolean(data.has_resend_api_key))
+      })
+      .catch(() => {
+        if (!cancelled) setHasResendApiKey(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [tab, session?.access_token])
 
   useEffect(() => {
     setDisplayName(user?.user_metadata?.full_name || '')
@@ -298,6 +314,7 @@ export default function Settings() {
       if (resendApiKey.trim()) {
         await saveAgencyResendKey(session, resendApiKey.trim())
         setResendApiKey('')
+        setHasResendApiKey(true)
       }
       setForm({})
       setMessage('Settings saved successfully.')
@@ -356,6 +373,7 @@ export default function Settings() {
   const isErrorMessage = message && (
     message.includes('Failed')
     || message.includes('not configured')
+    || message.includes('missing')
     || message.includes('Not found')
     || message.includes('not found')
     || message.toLowerCase().includes('error')
@@ -571,12 +589,22 @@ export default function Settings() {
               </Card>
 
               <Card className="border-slate-200/80 p-6 shadow-sm sm:p-8">
-                <SectionHeader title="Resend email" description="Automated API email for test sends and future transactional delivery (optional)." />
+                <SectionHeader title="Resend email" description="Automated API email for team invites, test sends, and transactional delivery." />
                 <div className="space-y-5">
+                  {hasResendApiKey === false && (
+                    <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                      Resend API key is not saved yet. Paste your <code className="font-mono text-xs">re_…</code> key below and click Save changes — invites cannot send without it.
+                    </p>
+                  )}
+                  {hasResendApiKey === true && (
+                    <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                      Resend API key is saved. Leave the key field blank to keep it, or paste a new key to replace it.
+                    </p>
+                  )}
                   <Input label="Domain" value={field('resend_domain')} onChange={(e) => setField('resend_domain', e.target.value)} disabled={!canManage} />
                   <Input label="From address" value={field('resend_from_email')} onChange={(e) => setField('resend_from_email', e.target.value)} placeholder="hello@mail.youragency.com" disabled={!canManage} />
                   <Input label="Reply-to" value={field('resend_reply_to')} onChange={(e) => setField('resend_reply_to', e.target.value)} type="email" disabled={!canManage} />
-                  <Input label="API key" type="password" value={resendApiKey} onChange={(e) => setResendApiKey(e.target.value)} placeholder="re_… (leave blank to keep existing)" disabled={!canManage} />
+                  <Input label="API key" type="password" value={resendApiKey} onChange={(e) => setResendApiKey(e.target.value)} placeholder={hasResendApiKey ? 're_… (leave blank to keep existing)' : 're_… (required)'} disabled={!canManage} />
                   <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
                     <Input className="min-w-[200px] flex-1" label="Test recipient" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} type="email" />
                     <Button type="button" variant="secondary" onClick={handleResendTest} disabled={sendingTest || !canManage}>
