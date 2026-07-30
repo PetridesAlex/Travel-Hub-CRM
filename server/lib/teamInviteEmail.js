@@ -6,14 +6,52 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
 }
 
+const PRODUCTION_APP_URL = 'https://travel-hub-crm.vercel.app'
+
+function normalizeAppUrl(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+  return withProtocol.replace(/\/$/, '')
+}
+
+/** Preview / deployment URLs that often require a Vercel login. Never put these in invite emails. */
+export function isEphemeralVercelUrl(url) {
+  try {
+    const host = new URL(normalizeAppUrl(url)).hostname.toLowerCase()
+    if (host === 'travel-hub-crm.vercel.app') return false
+    if (host === 'localhost' || host === '127.0.0.1') return false
+    if (/-projects\.vercel\.app$/i.test(host)) return true
+    if (/-git-[a-z0-9-]+\.vercel\.app$/i.test(host)) return true
+    // Random deployment hostnames (not the stable production alias)
+    if (/^[a-z0-9-]+-[a-z0-9]+-[a-z0-9-]+\.vercel\.app$/i.test(host) && host !== 'travel-hub-crm.vercel.app') {
+      return true
+    }
+    return false
+  } catch {
+    return true
+  }
+}
+
+/**
+ * Public CRM origin for invite emails and redirects.
+ * Never use VERCEL_URL — preview deployments can require Vercel SSO.
+ */
 export function getAppBaseUrl() {
-  const fromEnv =
-    process.env.APP_URL ||
-    process.env.VITE_APP_URL ||
-    process.env.CRM_URL ||
-    process.env.SITE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
-  return String(fromEnv || 'https://travel-hub-crm.vercel.app').replace(/\/$/, '')
+  const candidates = [
+    process.env.APP_URL,
+    process.env.VITE_APP_URL,
+    process.env.CRM_URL,
+    process.env.SITE_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  ]
+
+  for (const candidate of candidates) {
+    const url = normalizeAppUrl(candidate)
+    if (url && !isEphemeralVercelUrl(url)) return url
+  }
+
+  return PRODUCTION_APP_URL
 }
 
 /**
